@@ -1,0 +1,38 @@
+"""
+共享 ChromaDB 客户端 — 避免多个 PersistentClient 实例因 Settings 不一致而冲突。
+
+用法：
+    from rag.chroma_client import get_client, get_or_create_collection
+
+    collection = get_or_create_collection("my_collection")
+    collection.add(...)
+"""
+import os
+import chromadb
+from chromadb.config import Settings
+
+_client = None
+_db_path = None
+
+# 统一的 Settings，所有调用方必须一致
+_SHARED_SETTINGS = Settings(
+    anonymized_telemetry=False,
+    allow_reset=True,
+)
+
+
+def get_client() -> chromadb.PersistentClient:
+    """获取全局唯一的 ChromaDB PersistentClient 实例"""
+    global _client, _db_path
+    db_path = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+    if _client is None or _db_path != db_path:
+        os.makedirs(db_path, exist_ok=True)
+        _client = chromadb.PersistentClient(path=db_path, settings=_SHARED_SETTINGS)
+        _db_path = db_path
+    return _client
+
+
+def get_or_create_collection(name: str):
+    """获取或创建集合（线程安全由 ChromaDB 保证）"""
+    client = get_client()
+    return client.get_or_create_collection(name=name)

@@ -1,0 +1,18 @@
+<resources>
+    <style name="Theme.EcommerceAIAgent" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryContainer">@color/primaryVariant</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorSecondaryContainer">@color/secondaryVariant</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorError">@color/error</item>
+        <item name="colorOnPrimary">@color/onPrimary</item>
+        <item name="colorOnSecondary">@color/onSecondary</item>
+        <item name="colorOnSurface">@color/onSurface</item>
+        <item name="colorOnError">@color/onError</item>
+        <!-- 状态栏颜色 -->
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

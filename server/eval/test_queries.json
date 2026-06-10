@@ -1,0 +1,63 @@
+[
+  {
+    "query": "推荐一款适合油皮的洗面奶",
+    "expected_category": "美妆护肤",
+    "expected_keywords": ["洗面奶", "洁面", "控油"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "200以内的蓝牙耳机",
+    "expected_category": "数码电子",
+    "expected_keywords": ["蓝牙", "耳机", "无线"],
+    "min_expected_products": 2,
+    "max_price": 200
+  },
+  {
+    "query": "适合跑步的鞋",
+    "expected_category": "服饰运动",
+    "expected_keywords": ["跑步", "跑鞋", "运动鞋"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "好吃的零食",
+    "expected_category": "食品饮料",
+    "expected_keywords": ["零食", "食品", "坚果"],
+    "min_expected_products": 3
+  },
+  {
+    "query": "补水面膜推荐",
+    "expected_category": "美妆护肤",
+    "expected_keywords": ["面膜", "补水", "保湿"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "国产手机推荐",
+    "expected_category": "数码电子",
+    "expected_keywords": ["手机", "国产", "华为", "小米"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "防晒霜哪个牌子好",
+    "expected_category": "美妆护肤",
+    "expected_keywords": ["防晒", "防晒霜"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "便宜的T恤",
+    "expected_category": "服饰运动",
+    "expected_keywords": ["T恤", "短袖", "上衣"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "咖啡推荐",
+    "expected_category": "食品饮料",
+    "expected_keywords": ["咖啡", "速溶", "饮品"],
+    "min_expected_products": 2
+  },
+  {
+    "query": "笔记本电脑性价比高的",
+    "expected_category": "数码电子",
+    "expected_keywords": ["笔记本", "电脑", "轻薄"],
+    "min_expected_products": 2
+  }
+]

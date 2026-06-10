@@ -1,0 +1,702 @@
+[
+  {
+    "id": "p_beauty_001",
+    "title": "雅诗兰黛特润修护肌活精华露淡纹紧致保湿夜间修护抗初老精华30ml",
+    "brand": "雅诗兰黛",
+    "category": "美妆护肤",
+    "price": 720.0
+  },
+  {
+    "id": "p_beauty_002",
+    "title": "兰蔻小黑瓶全新精华肌底液修护维稳细腻毛孔提亮肤色30ml",
+    "brand": "兰蔻",
+    "category": "美妆护肤",
+    "price": 760.0
+  },
+  {
+    "id": "p_beauty_003",
+    "title": "SK-II护肤精华露神仙水晶透保湿调理角质收缩毛孔230ml",
+    "brand": "SK-II",
+    "category": "美妆护肤",
+    "price": 1690.0
+  },
+  {
+    "id": "p_beauty_004",
+    "title": "资生堂新红妍肌活精华露红腰子修护维稳强韧肌底精华50ml",
+    "brand": "资生堂",
+    "category": "美妆护肤",
+    "price": 590.0
+  },
+  {
+    "id": "p_beauty_005",
+    "title": "科颜氏新集焕白均衡亮肤淡斑精华液提亮肤色淡化斑点精华30ml",
+    "brand": "科颜氏",
+    "category": "美妆护肤",
+    "price": 520.0
+  },
+  {
+    "id": "p_beauty_006",
+    "title": "巴黎欧莱雅新多重防护隔离露水感轻薄高倍防晒修护提亮30ml",
+    "brand": "巴黎欧莱雅",
+    "category": "美妆护肤",
+    "price": 170.0
+  },
+  {
+    "id": "p_beauty_007",
+    "title": "薇诺娜舒敏保湿特护霜敏感肌修护屏障舒缓干痒保湿面霜50g",
+    "brand": "薇诺娜",
+    "category": "美妆护肤",
+    "price": 268.0
+  },
+  {
+    "id": "p_beauty_008",
+    "title": "玉兰油新生塑颜金纯面霜紧致提拉淡纹保湿抗初老大红瓶50g",
+    "brand": "玉兰油",
+    "category": "美妆护肤",
+    "price": 239.0
+  },
+  {
+    "id": "p_beauty_009",
+    "title": "珀莱雅弹润透亮青春精华液双抗精华提亮肤色淡纹保湿精华50ml",
+    "brand": "珀莱雅",
+    "category": "美妆护肤",
+    "price": 280.0
+  },
+  {
+    "id": "p_beauty_010",
+    "title": "安热沙金灿倍护防晒乳高倍防水防汗清爽户外面部身体防晒60ml",
+    "brand": "安热沙",
+    "category": "美妆护肤",
+    "price": 298.0
+  },
+  {
+    "id": "p_beauty_011",
+    "title": "珊珂洗颜专科绵润泡沫洁面乳细腻丰富泡沫温和清洁洁面120g",
+    "brand": "珊珂",
+    "category": "美妆护肤",
+    "price": 52.0
+  },
+  {
+    "id": "p_beauty_012",
+    "title": "理肤泉特安舒缓修复霜滋润型敏感肌保湿修护屏障面霜40ml",
+    "brand": "理肤泉",
+    "category": "美妆护肤",
+    "price": 260.0
+  },
+  {
+    "id": "p_beauty_013",
+    "title": "方里柔焦蜜粉饼控油定妆细腻粉质隐匿毛孔提亮肤色粉饼7g",
+    "brand": "方里",
+    "category": "美妆护肤",
+    "price": 99.0
+  },
+  {
+    "id": "p_beauty_014",
+    "title": "花西子空气蜜粉轻盈定妆控油提亮肤色细腻粉质散粉8.5g",
+    "brand": "花西子",
+    "category": "美妆护肤",
+    "price": 169.0
+  },
+  {
+    "id": "p_beauty_015",
+    "title": "完美日记仿生膜精华唇釉丝绒哑光滋润显色持妆唇部彩妆3g",
+    "brand": "完美日记",
+    "category": "美妆护肤",
+    "price": 120.0
+  },
+  {
+    "id": "p_beauty_016",
+    "title": "AHC塑颜修护全脸眼霜紧致淡纹保湿提亮多效眼周护理30ml",
+    "brand": "AHC",
+    "category": "美妆护肤",
+    "price": 139.0
+  },
+  {
+    "id": "p_beauty_017",
+    "title": "芳珂纳米温和净化卸妆油深层清洁毛孔无添加卸妆液120ml",
+    "brand": "芳珂",
+    "category": "美妆护肤",
+    "price": 178.0
+  },
+  {
+    "id": "p_beauty_018",
+    "title": "The Ordinary烟酰胺10%锌1%精华液平衡油脂淡化毛孔提亮肤色30ml",
+    "brand": "The Ordinary",
+    "category": "美妆护肤",
+    "price": 59.0
+  },
+  {
+    "id": "p_beauty_019",
+    "title": "兰蔻清滢柔肤水大粉水保湿舒缓干性肌肤柔润爽肤水400ml",
+    "brand": "兰蔻",
+    "category": "美妆护肤",
+    "price": 582.0
+  },
+  {
+    "id": "p_beauty_020",
+    "title": "雅诗兰黛持妆粉底液SPF10PA持久遮瑕控油抗汗清透底妆30ml",
+    "brand": "雅诗兰黛",
+    "category": "美妆护肤",
+    "price": 440.0
+  },
+  {
+    "id": "p_beauty_021",
+    "title": "科颜氏牛油果保湿眼霜滋润补水细腻质地淡化干纹眼周护理28g",
+    "brand": "科颜氏",
+    "category": "美妆护肤",
+    "price": 320.0
+  },
+  {
+    "id": "p_beauty_022",
+    "title": "薇诺娜极润保湿面膜密集补水舒缓修护肌肤屏障涂抹式面膜75g",
+    "brand": "薇诺娜",
+    "category": "美妆护肤",
+    "price": 199.0
+  },
+  {
+    "id": "p_beauty_023",
+    "title": "理肤泉特护清盈防晒乳高倍防晒清爽控油易敏肌适用面部防晒50ml",
+    "brand": "理肤泉",
+    "category": "美妆护肤",
+    "price": 268.0
+  },
+  {
+    "id": "p_beauty_024",
+    "title": "珀莱雅赋能鲜颜淡纹紧致精华液抗皱紧致提升弹润淡化细纹30ml",
+    "brand": "珀莱雅",
+    "category": "美妆护肤",
+    "price": 300.0
+  },
+  {
+    "id": "p_beauty_025",
+    "title": "花西子螺黛生花眉笔细节点描顺滑显色防晕染持久双头眉笔0.08g",
+    "brand": "花西子",
+    "category": "美妆护肤",
+    "price": 89.0
+  },
+  {
+    "id": "p_digital_001",
+    "title": "Apple iPhone 17 Pro 6.3英寸 A19 Pro 256GB 全网通旗舰手机",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 8999.0
+  },
+  {
+    "id": "p_digital_002",
+    "title": "华为HUAWEI Pura 90 Pro 超感光影像曲面屏轻薄旗舰手机12+256GB",
+    "brand": "华为",
+    "category": "数码电子",
+    "price": 6999.0
+  },
+  {
+    "id": "p_digital_003",
+    "title": "Apple iPhone 17 Pro Max 6.9英寸 A19 Pro 256GB 大屏旗舰手机",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 9999.0
+  },
+  {
+    "id": "p_digital_004",
+    "title": "华为HUAWEI MateBook 14 鸿蒙版 14英寸轻薄高性能生产力笔记本",
+    "brand": "华为",
+    "category": "数码电子",
+    "price": 6299.0
+  },
+  {
+    "id": "p_digital_005",
+    "title": "华为HUAWEI MatePad Pro Max 12.6英寸高刷屏多任务办公平板电脑",
+    "brand": "华为",
+    "category": "数码电子",
+    "price": 4999.0
+  },
+  {
+    "id": "p_digital_006",
+    "title": "Apple MacBook Pro 14英寸 M5 芯片 16GB 512GB 专业高性能笔记本电脑",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 13499.0
+  },
+  {
+    "id": "p_digital_007",
+    "title": "华为HUAWEI FreeBuds Pro 5 主动降噪真无线蓝牙耳机高解析音质",
+    "brand": "华为",
+    "category": "数码电子",
+    "price": 1699.0
+  },
+  {
+    "id": "p_digital_008",
+    "title": "小米 17 Ultra 2K高刷屏潜望长焦澎湃芯片影像旗舰5G手机12+256GB",
+    "brand": "小米",
+    "category": "数码电子",
+    "price": 7499.0
+  },
+  {
+    "id": "p_digital_009",
+    "title": "小米 17 Max 大屏长续航高性能影音游戏5G智能手机12+256GB",
+    "brand": "小米",
+    "category": "数码电子",
+    "price": 6499.0
+  },
+  {
+    "id": "p_digital_010",
+    "title": "小米 MIX Fold 5 内折大屏旗舰折叠屏手机多任务办公影音利器",
+    "brand": "小米",
+    "category": "数码电子",
+    "price": 9999.0
+  },
+  {
+    "id": "p_digital_011",
+    "title": "小米平板 8 Pro 12.1英寸高刷大屏影音娱乐学习办公平板电脑",
+    "brand": "小米",
+    "category": "数码电子",
+    "price": 3299.0
+  },
+  {
+    "id": "p_digital_012",
+    "title": "Apple MacBook Pro 16英寸 M5 Pro 芯片 32GB 1TB 创意设计师笔记本电脑",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 21999.0
+  },
+  {
+    "id": "p_digital_013",
+    "title": "Apple iPad Pro 13英寸 (M5) Liquid视网膜 XDR 显示屏 256GB Wi‑Fi 平板电脑",
+    "brand": "苹果",
+    "category": "数码电子",
+    "price": 8999.0
+  },
+  {
+    "id": "p_digital_014",
+    "title": "OPPO Find N6 内折柔性大屏旗舰折叠屏手机多任务办公影音体验",
+    "brand": "OPPO",
+    "category": "数码电子",
+    "price": 9699.0
+  },
+  {
+    "id": "p_digital_015",
+    "title": "OPPO Find X9 Ultra 超大底影像旗舰2K高刷屏长续航5G智能手机",
+    "brand": "OPPO",
+    "category": "数码电子",
+    "price": 6999.0
+  },
+  {
+    "id": "p_digital_016",
+    "title": "OPPO Reno 16 Pro 轻薄人像摄影高刷屏快充5G智能手机12+256GB",
+    "brand": "OPPO",
+    "category": "数码电子",
+    "price": 3299.0
+  },
+  {
+    "id": "p_digital_017",
+    "title": "vivo X300 Ultra 旗舰影像2K护眼屏长续航高性能5G智能手机",
+    "brand": "vivo",
+    "category": "数码电子",
+    "price": 6999.0
+  },
+  {
+    "id": "p_digital_018",
+    "title": "Apple AirPods Pro 3 主动降噪真无线蓝牙耳机 心率监测版",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 1899.0
+  },
+  {
+    "id": "p_digital_019",
+    "title": "vivo Pad 6 Pro 12.1英寸高刷全面屏学习娱乐多任务办公平板电脑",
+    "brand": "vivo",
+    "category": "数码电子",
+    "price": 3299.0
+  },
+  {
+    "id": "p_digital_020",
+    "title": "Apple MacBook Air 13英寸 M5 芯片 16GB 512GB 轻薄便携笔记本电脑",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 8499.0
+  },
+  {
+    "id": "p_digital_021",
+    "title": "华为 MatePad Pro 13.2英寸 柔性OLED高刷屏轻办公创作旗舰平板电脑",
+    "brand": "华为",
+    "category": "数码电子",
+    "price": 5199.0
+  },
+  {
+    "id": "p_digital_022",
+    "title": "联想 ThinkPad X1 Carbon Aura AI 元启版2026 14英寸高端商务轻薄本",
+    "brand": "联想",
+    "category": "数码电子",
+    "price": 10999.0
+  },
+  {
+    "id": "p_digital_023",
+    "title": "联想 ThinkBook 14+ 2026 全面屏高性能轻薄本商务学习笔记本电脑",
+    "brand": "联想",
+    "category": "数码电子",
+    "price": 6999.0
+  },
+  {
+    "id": "p_digital_024",
+    "title": "Apple iPad Pro 13 英寸 M4 芯片 256GB Wi‑Fi 平板电脑",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 8999.0
+  },
+  {
+    "id": "p_digital_025",
+    "title": "Apple iPad Air 11英寸 2026款 M4 芯片 128GB Wi‑Fi 轻薄学习娱乐平板电脑",
+    "brand": "Apple 苹果",
+    "category": "数码电子",
+    "price": 4799.0
+  },
+  {
+    "id": "p_clothes_001",
+    "title": "优衣库 U AIRism 棉质宽松圆领短袖T恤 男装 基础纯色上衣",
+    "brand": "优衣库",
+    "category": "服饰运动",
+    "price": 99.0
+  },
+  {
+    "id": "p_clothes_002",
+    "title": "优衣库 DRY-EX 超快干圆领短袖T恤 男装 运动训练上衣",
+    "brand": "优衣库",
+    "category": "服饰运动",
+    "price": 129.0
+  },
+  {
+    "id": "p_clothes_003",
+    "title": "Nike Dri-FIT 男子训练短袖T恤 速干透气运动上衣",
+    "brand": "耐克",
+    "category": "服饰运动",
+    "price": 199.0
+  },
+  {
+    "id": "p_clothes_004",
+    "title": "adidas Essentials 三条纹 男子针织运动长裤 日常休闲收口裤",
+    "brand": "阿迪达斯",
+    "category": "服饰运动",
+    "price": 299.0
+  },
+  {
+    "id": "p_clothes_005",
+    "title": "李宁 运动生活系列 男子连帽套头卫衣 基础Logo印花上衣",
+    "brand": "李宁",
+    "category": "服饰运动",
+    "price": 259.0
+  },
+  {
+    "id": "p_clothes_006",
+    "title": "Nike Sportswear Club 男子针织运动长裤 基础休闲束脚裤",
+    "brand": "Nike",
+    "category": "服饰运动",
+    "price": 349.0
+  },
+  {
+    "id": "p_clothes_007",
+    "title": "Nike Air Zoom Pegasus 41 男子缓震跑步鞋日常训练公路跑鞋",
+    "brand": "耐克",
+    "category": "服饰运动",
+    "price": 899.0
+  },
+  {
+    "id": "p_clothes_008",
+    "title": "adidas Ultraboost 5 男子缓震跑步鞋针织鞋面日常慢跑训练鞋",
+    "brand": "阿迪达斯",
+    "category": "服饰运动",
+    "price": 1399.0
+  },
+  {
+    "id": "p_clothes_009",
+    "title": "HOKA Clifton 9 男子缓震公路跑鞋厚底回弹日常长距离训练鞋",
+    "brand": "HOKA",
+    "category": "服饰运动",
+    "price": 1099.0
+  },
+  {
+    "id": "p_clothes_010",
+    "title": "特步 160X 6.0 PRO 碳板竞速跑鞋马拉松训练比赛轻量跑步鞋",
+    "brand": "特步",
+    "category": "服饰运动",
+    "price": 999.0
+  },
+  {
+    "id": "p_clothes_011",
+    "title": "Nike LeBron XXI EP 男子中帮实战篮球鞋全掌缓震室内外场地训练鞋",
+    "brand": "耐克",
+    "category": "服饰运动",
+    "price": 1599.0
+  },
+  {
+    "id": "p_clothes_012",
+    "title": "安踏 KT9 氮科技实战篮球鞋中帮缓震支撑外场内场训练比赛鞋",
+    "brand": "安踏",
+    "category": "服饰运动",
+    "price": 999.0
+  },
+  {
+    "id": "p_clothes_013",
+    "title": "李宁 韦德之道 全城12 实战篮球专业比赛鞋缓震支撑后卫前锋鞋",
+    "brand": "李宁",
+    "category": "服饰运动",
+    "price": 1199.0
+  },
+  {
+    "id": "p_clothes_014",
+    "title": "SALOMON X ULTRA 4 GORE-TEX 男子防水徒步鞋轻量抓地登山越野鞋",
+    "brand": "萨洛蒙",
+    "category": "服饰运动",
+    "price": 1198.0
+  },
+  {
+    "id": "p_clothes_015",
+    "title": "Merrell MOAB 3 GTX 男子防水登山徒步鞋稳定支撑户外多地形鞋",
+    "brand": "迈乐",
+    "category": "服饰运动",
+    "price": 1099.0
+  },
+  {
+    "id": "p_clothes_016",
+    "title": "Lululemon Align 高腰紧身裤 25英寸 女士瑜伽裤柔软裸感运动裤",
+    "brand": "露露乐蒙",
+    "category": "服饰运动",
+    "price": 880.0
+  },
+  {
+    "id": "p_clothes_017",
+    "title": "Arc'teryx Gamma Pant 男子软壳长裤耐磨弹力户外徒步攀爬长裤",
+    "brand": "始祖鸟",
+    "category": "服饰运动",
+    "price": 1290.0
+  },
+  {
+    "id": "p_clothes_018",
+    "title": "The North Face Borealis 28L 多功能通勤户外双肩背包",
+    "brand": "The North Face",
+    "category": "服饰运动",
+    "price": 1098.0
+  },
+  {
+    "id": "p_clothes_019",
+    "title": "Nike Heritage86 Futura Logo 经典刺绣棒球帽 可调节帽围",
+    "brand": "Nike",
+    "category": "服饰运动",
+    "price": 169.0
+  },
+  {
+    "id": "p_clothes_020",
+    "title": "迪卡侬 KALENJI 男子跑步速干T恤轻薄透气基础训练短袖上衣",
+    "brand": "迪卡侬",
+    "category": "服饰运动",
+    "price": 79.0
+  },
+  {
+    "id": "p_clothes_021",
+    "title": "Nike Dri-FIT Miler 男子速干短袖跑步上衣轻薄透气公路训练T恤",
+    "brand": "耐克",
+    "category": "服饰运动",
+    "price": 249.0
+  },
+  {
+    "id": "p_clothes_022",
+    "title": "adidas Originals 三叶草 男子连帽卫衣 经典logo套头上衣",
+    "brand": "阿迪达斯",
+    "category": "服饰运动",
+    "price": 459.0
+  },
+  {
+    "id": "p_clothes_023",
+    "title": "优衣库 男装 DRY 速干运动短裤 轻薄透气训练裤",
+    "brand": "优衣库",
+    "category": "服饰运动",
+    "price": 149.0
+  },
+  {
+    "id": "p_clothes_024",
+    "title": "The North Face Horizon 轻量速干运动鸭舌帽防晒透气户外遮阳帽",
+    "brand": "北面",
+    "category": "服饰运动",
+    "price": 199.0
+  },
+  {
+    "id": "p_clothes_025",
+    "title": "Osprey DAYLITE PLUS 日光+ 20L 户外多功能双肩背包轻量通勤包",
+    "brand": "Osprey",
+    "category": "服饰运动",
+    "price": 699.0
+  },
+  {
+    "id": "p_food_001",
+    "title": "三顿半 数字星球系列 超即溶精品咖啡1-6号 18颗装精品速溶咖啡",
+    "brand": "三顿半",
+    "category": "食品饮料",
+    "price": 138.0
+  },
+  {
+    "id": "p_food_002",
+    "title": "雀巢咖啡 1+2原味 三合一速溶咖啡粉100条装即冲奶香咖啡饮品",
+    "brand": "雀巢",
+    "category": "食品饮料",
+    "price": 60.0
+  },
+  {
+    "id": "p_food_003",
+    "title": "农夫山泉 东方树叶 无糖乌龙茶饮料500ml 瓶装茶饮低糖替代方案",
+    "brand": "东方树叶",
+    "category": "食品饮料",
+    "price": 4.0
+  },
+  {
+    "id": "p_food_004",
+    "title": "元气森林 0糖0脂0卡 白桃味气泡水480ml 碳酸饮料即饮苏打型饮品",
+    "brand": "元气森林",
+    "category": "食品饮料",
+    "price": 4.5
+  },
+  {
+    "id": "p_food_005",
+    "title": "东鹏特饮 维生素功能饮料500ml 经典瓶装补充能量含牛磺酸咖啡因",
+    "brand": "东鹏",
+    "category": "食品饮料",
+    "price": 5.0
+  },
+  {
+    "id": "p_food_006",
+    "title": "红牛 维生素功能饮料250ml*24罐整箱补充能量含牛磺酸咖啡因",
+    "brand": "红牛",
+    "category": "食品饮料",
+    "price": 120.0
+  },
+  {
+    "id": "p_food_007",
+    "title": "伊利 金典 有机纯牛奶250ml*12盒 甄选有机奶源常温盒装牛奶",
+    "brand": "金典",
+    "category": "食品饮料",
+    "price": 72.0
+  },
+  {
+    "id": "p_food_008",
+    "title": "蒙牛 纯甄 常温风味酸牛奶经典原味200g*10盒发酵乳饮品",
+    "brand": "纯甄",
+    "category": "食品饮料",
+    "price": 55.0
+  },
+  {
+    "id": "p_food_009",
+    "title": "三只松鼠 每日坚果750g/30袋 混合坚果仁干果礼盒独立小包装",
+    "brand": "三只松鼠",
+    "category": "食品饮料",
+    "price": 99.0
+  },
+  {
+    "id": "p_food_010",
+    "title": "良品铺子 肉松饼1000g/箱 松软糕点休闲零食早餐代餐点心",
+    "brand": "良品铺子",
+    "category": "食品饮料",
+    "price": 59.0
+  },
+  {
+    "id": "p_food_011",
+    "title": "康师傅 经典红烧牛肉面110g*12桶装方便面泡面速食面整箱装",
+    "brand": "康师傅",
+    "category": "食品饮料",
+    "price": 45.0
+  },
+  {
+    "id": "p_food_012",
+    "title": "统一 老坛酸菜牛肉面来一桶121g*12桶方便面泡面酸辣风味整箱",
+    "brand": "统一",
+    "category": "食品饮料",
+    "price": 50.0
+  },
+  {
+    "id": "p_food_013",
+    "title": "海天 金标生抽1.9L 瓶装酱油 家用厨房调味料酱香鲜味佐餐蘸料",
+    "brand": "海天",
+    "category": "食品饮料",
+    "price": 22.0
+  },
+  {
+    "id": "p_food_014",
+    "title": "农夫山泉 东方树叶 无糖茉莉花茶饮料 500ml×15 瓶装茶饮",
+    "brand": "农夫山泉",
+    "category": "食品饮料",
+    "price": 75.0
+  },
+  {
+    "id": "p_food_015",
+    "title": "可口可乐 零度汽水 无糖碳酸饮料 330ml×24 罐装",
+    "brand": "可口可乐",
+    "category": "食品饮料",
+    "price": 75.0
+  },
+  {
+    "id": "p_food_016",
+    "title": "蒙牛 特仑苏 纯牛奶 250ml×16 盒装 常温乳制品",
+    "brand": "蒙牛",
+    "category": "食品饮料",
+    "price": 85.0
+  },
+  {
+    "id": "p_food_017",
+    "title": "伊利 安慕希 希腊风味常温酸奶 原味 205g×10 盒装",
+    "brand": "伊利",
+    "category": "食品饮料",
+    "price": 68.0
+  },
+  {
+    "id": "p_food_018",
+    "title": "李锦记 特级草菇老抽 1.65L 瓶装酱油 家庭厨房调味品",
+    "brand": "李锦记",
+    "category": "食品饮料",
+    "price": 29.0
+  },
+  {
+    "id": "p_food_019",
+    "title": "百草味 每日坚果A款 750g/30袋 混合坚果零食礼盒",
+    "brand": "百草味",
+    "category": "食品饮料",
+    "price": 118.0
+  },
+  {
+    "id": "p_food_020",
+    "title": "日清 合味道 海鲜风味 杯装方便面 79g×12 杯整箱",
+    "brand": "日清",
+    "category": "食品饮料",
+    "price": 69.0
+  },
+  {
+    "id": "p_food_021",
+    "title": "康师傅 红烧牛肉面 方便面袋装 114g×5 袋 五连包整袋",
+    "brand": "康师傅",
+    "category": "食品饮料",
+    "price": 18.9
+  },
+  {
+    "id": "p_food_022",
+    "title": "三顿半 冷萃超即溶 黑咖啡 6颗装 冷泡即溶精品速溶咖啡",
+    "brand": "三顿半",
+    "category": "食品饮料",
+    "price": 58.0
+  },
+  {
+    "id": "p_food_023",
+    "title": "雀巢 金牌 冻干速溶咖啡 100g 瓶装 黑咖啡",
+    "brand": "雀巢",
+    "category": "食品饮料",
+    "price": 42.0
+  },
+  {
+    "id": "p_food_024",
+    "title": "元气森林 白葡萄味 苏打气泡水 480ml×12 0糖0脂0卡",
+    "brand": "元气森林",
+    "category": "食品饮料",
+    "price": 52.0
+  },
+  {
+    "id": "p_food_025",
+    "title": "农夫山泉 水溶C100 柠檬味饮料 445ml×15 瓶装 维生素C饮品",
+    "brand": "农夫山泉",
+    "category": "食品饮料",
+    "price": 89.0
+  }
+]

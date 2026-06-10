@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="4dp">
+
+    <!-- 头像 -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/ic_launcher_background" />
+
+    <!-- 消息内容容器 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/ai_bubble_background"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp">
+
+            <!-- 简单文本消息 -->
+            <TextView
+                android:id="@+id/tv_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1E293B"
+                android:textSize="16sp"
+                android:lineSpacingMultiplier="1.5" />
+
+            <!-- 混合内容容器（文本+商品卡片） -->
+            <LinearLayout
+                android:id="@+id/content_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

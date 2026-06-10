@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+server/venv/
+
+# Environment - 包含敏感配置（API密钥等）
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+.env.sample
+.env.template
+
+# 密钥文件
+*.key
+*.pem
+*.crt
+*.p12
+secrets.json
+credentials.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ChromaDB (runtime data)
+server/chroma_db/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/*.apk
+android/*.aab
+android/captures/
+*.hprof
+*.hprof.zip
+
+# Hugging Face cache
+cache/
