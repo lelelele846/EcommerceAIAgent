@@ -7,8 +7,8 @@ Cross-Encoder Reranker — 在 RRF 融合后对 chunk 做精排。
 流程：
     RRF top-20 chunks → CrossEncoder(query, chunk) → score → 重排 → 商品聚合
 
-模型：BAAI/bge-reranker-v2-m3（多语言，中日英均支持）
-首次下载 ~1.2GB，推理 ~50ms/对，20 对约 1s。
+模型：BAAI/bge-reranker-base（默认，可通过 RERANKER_MODEL 环境变量覆盖）
+首次下载 ~500MB，推理 ~50ms/对，20 对约 1s。
 """
 import os
 from typing import Optional

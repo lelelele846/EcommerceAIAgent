@@ -3,10 +3,11 @@ Scene Agent — 场景化购物方案规划。
 
 职责：
   Step 1: 拦截 "重新规划" / "结束购物" 控制指令
-  Step 2: LLM 把用户场景拆成 2-4 个购物主题（theme + query）
-  Step 3: 硬校验：topic query 必须命中数据集中存在的品类
-  Step 4: 保存 scene_context 到会话（session.scene_context）
-  Step 5: 推送方案概述文字 + 主题选择按钮
+  Step 2: 告知用户正在规划（tool_progress 推送）
+  Step 3: LLM 把用户场景拆成 2-4 个购物主题（theme + query）
+  Step 4: 硬校验：topic query 必须命中数据集中存在的品类
+  Step 5: 保存 scene_context 到会话（session.scene_context）
+  Step 6: 推送方案概述文字 + 主题选择按钮
 
 后续流程：用户点击 "了解X" → chat.py 路由到 search_agent 正常检索出卡。
 每个主题独立走 search_agent，和单品流程完全统一（包括澄清、对比）。

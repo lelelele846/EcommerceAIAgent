@@ -1,11 +1,12 @@
 """
-Compare Agent — 多商品对比（五步法）。
+Compare Agent — 多商品对比。
 
 流程：
   Step 1: 商品识别 — 从消息/params/session 解析商品名 → search_by_name 查找
   Step 2: 维度提取 — LLM（JSON Mode）从商品描述中抽取可对比属性
   Step 3: 表格组装 — 推送 comparison_table（数据来自 product_repo，不靠模型编）
   Step 4: 对比文案 — 流式生成自然语言对比分析（核心：用户可读的对比内容）
+  (Step 4b 兜底：流式中未展示的卡片补推)
 
 关键设计：价格/品牌/标题等硬数据全从商品对象取，LLM 只负责抽取维度
 和推荐理由，不生成结构化数据——杜绝编造价格/规格。
