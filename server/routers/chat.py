@@ -7,15 +7,14 @@ from models.schemas import ChatRequest
 from models.events import (
     thinking, tool_progress, content as ev_content,
     product_card_compact, comparison_table, clarification as ev_clarification,
-    start as ev_start, end as ev_end, error as ev_error, done as ev_done,
-    SSEEvent,
+    end as ev_end, error as ev_error,
 )
-from utils.category_detector import detect_category
+from utils.category_detector import detect_category, detect_all_categories
 from utils.price_parser import detect_price_range
 from utils.product_card_parser import PRODUCT_CARD_PATTERN, strip_product_card_markers, StreamCardParser
 from utils.query_analyzer import analyze_query, get_clarification_prompt, SPECIFIC_PRODUCT_KEYWORDS, ALL_BRANDS
 from utils.position_resolver import resolve_product_id, has_product_reference, extract_position_from_message
-from services.capability_manager import CapabilityManager, IntentType
+from utils.product_repo import products_to_dict_list
 from agent.state_machine import AgentState, get_next_state, is_agent_allowed
 from db import relational as db  # 🆕 持久化层
 
@@ -34,54 +33,25 @@ def get_base_url(http_request: Request) -> str:
     return f"{scheme}://{host}"
 
 
-def products_to_dict_list(products, base_url: str) -> list:
-    """将商品对象转换为字典列表"""
-    if not products:
-        return []
-    
-    result = []
-    for i, p in enumerate(products):
-        try:
-            if hasattr(p, 'to_dict'):
-                result.append(p.to_dict(base_url=base_url))
-            else:
-                result.append({
-                    "id": getattr(p, 'id', str(i)),
-                    "name": getattr(p, 'title', getattr(p, 'name', f"Product {i}")),
-                    "brand": getattr(p, 'brand', "Unknown"),
-                    "category": getattr(p, 'category', "Unknown"),
-                    "price": getattr(p, 'base_price', getattr(p, 'price', 0.0)),
-                    "image_url": "",
-                    "rating": 4.5,
-                    "review_count": 1000,
-                    "description": getattr(p, 'description', "暂无描述")
-                })
-        except Exception as e:
-            print(f"转换商品 {i} 失败: {str(e)}")
-    return result
-
-
 # 全局服务实例（通过依赖注入设置）
 _retriever = None
 _doubao_service = None
 _session_manager = None
-_capability_manager = None
 _image_service = None
 
 
-def set_services(retriever, doubao_service, session_manager, capability_manager, image_service=None):
+def set_services(retriever, doubao_service, session_manager, image_service=None):
     """设置全局服务实例"""
-    global _retriever, _doubao_service, _session_manager, _capability_manager, _image_service
+    global _retriever, _doubao_service, _session_manager, _image_service
     _retriever = retriever
     _doubao_service = doubao_service
     _session_manager = session_manager
-    _capability_manager = capability_manager
     _image_service = image_service
 
 
 def _check_services_initialized():
     """检查服务是否已初始化"""
-    if None in [_retriever, _doubao_service, _session_manager, _capability_manager]:
+    if None in [_retriever, _doubao_service, _session_manager]:
         raise HTTPException(status_code=503, detail="服务正在初始化中，请稍后重试")
 
 
@@ -428,6 +398,9 @@ async def chat(request: ChatRequest, http_request: Request):
 
         # 更新用户偏好
         category = detect_category(query)
+        # 🔧 跨类目查询：涉及多个类目时不限制检索范围
+        if len(detect_all_categories(query)) >= 2:
+            category = None
         if category:
             _session_manager.update_preferences(request.session_id, category=category)
         
@@ -442,33 +415,7 @@ async def chat(request: ChatRequest, http_request: Request):
             "history": session.get_history(5)
         }
 
-        # 使用能力管理器处理请求
-        response = _capability_manager.process(query, context)
-        
-        # 需要追问
-        if response.need_more_info:
-            _session_manager.update_session(request.session_id, "assistant", response.reply_text)
-            return {
-                "reply_text": response.reply_text,
-                "products": [],
-                "need_more_info": True,
-                "questions": response.questions,
-                "session_id": request.session_id
-            }
-
-        # 有商品结果（对比或条件筛选）
-        if response.products:
-            _session_manager.update_session(request.session_id, "assistant", response.reply_text)
-            products_dict = products_to_dict_list(response.products, base_url)
-            return {
-                "reply_text": response.reply_text,
-                "products": products_dict,
-                "need_more_info": False,
-                "questions": [],
-                "session_id": request.session_id
-            }
-
-        # 使用AI生成回复
+        # 直接走 RAG + AI 生成管道（意图分类已由流式端点上的 agent 处理）
         prefs = session.preferences
         
         # 保存或获取原始类目（保持会话一致性）
@@ -734,6 +681,15 @@ async def chat_stream(request: ChatRequest, http_request: Request):
 
             # ── 5. 类目检测 ───────────────────────────────────
             category = detect_category(query)
+
+            # 🔧 跨类目查询检测：query 涉及多个类目时（如"露营的零食和衣服"），
+            # 不限制单一类目检索，避免漏掉其他类目的商品
+            all_detected_cats = detect_all_categories(query)
+            multi_category = len(all_detected_cats) >= 2
+            if multi_category:
+                print(f"[category] 跨类目查询: {all_detected_cats}，不限制类目检索")
+                category = None
+
             prefs = session.preferences if session else None
             existing_category = prefs.category if prefs else None
 
@@ -757,6 +713,9 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                         print(f"[category] 类目切换 → 清除旧品牌偏好")
 
             original_category = existing_category if existing_category else category
+            # 🔧 跨类目查询：不限制单一类目检索范围
+            if multi_category:
+                original_category = None
             if original_category:
                 _session_manager.update_preferences(request.session_id, category=original_category)
 

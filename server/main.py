@@ -17,7 +17,6 @@ from rag.prompt import build_prompt
 from services.doubao_service import DoubaoService
 from services.session_manager import SessionManager
 from services.feedback_manager import FeedbackManager
-from services.capability_manager import CapabilityManager
 from services.audio_service import AudioService
 from services.image_service import ImageService
 from utils.product_repo import product_repo
@@ -59,8 +58,6 @@ async def startup_event():
     doubao_service = DoubaoService()
     session_manager = SessionManager()
     feedback_manager = FeedbackManager()
-    capability_manager = CapabilityManager(retriever)
-    
     # 初始化多模态服务
     audio_service = AudioService()
     image_service = ImageService()
@@ -100,11 +97,11 @@ async def startup_event():
     from routers.multimodal import set_services as set_multimodal_services, router as multimodal_router
     
     # 设置服务实例
-    set_chat_services(retriever, doubao_service, session_manager, capability_manager, image_service)
+    set_chat_services(retriever, doubao_service, session_manager, image_service)
     set_product_retriever(retriever)
     set_session_mgr(session_manager)
     set_feedback_mgr(feedback_manager)
-    set_multimodal_services(audio_service, image_service, retriever, session_manager, capability_manager, doubao_service)
+    set_multimodal_services(audio_service, image_service, retriever, session_manager, doubao_service)
 
     # 设置 Agent 依赖注入
     setup_agents(retriever, doubao_service, session_manager)

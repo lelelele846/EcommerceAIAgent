@@ -12,8 +12,8 @@ import json
 from typing import AsyncIterator, Optional
 
 from models.events import (
-    tool_progress, content as ev_content, product_card_list, product_card_compact,
-    clarification as ev_clarification, image_searching, end as ev_end, SSEEvent,
+    tool_progress, content as ev_content, product_card_compact,
+    clarification as ev_clarification, image_searching, end as ev_end,
 )
 from rag.hyde import hyde_generator
 from rag.query_decomposer import query_decomposer
@@ -477,53 +477,60 @@ class SearchAgent:
         yield ev_content("").to_sse_compact()  # trigger start
 
         response_content = ""
-        buffered_content_events: list[str] = []   # 🔧 缓冲文本内容，用于反问检测
-        buffered_card_events: list[tuple[str, dict]] = []  # 缓冲卡片事件
+        buffered_text_for_guard: list[str] = []   # 🔧 累积文本用于反问检测，但实时流式输出
+        streamed_card_ids: set[str] = set()        # 🔧 已流式输出的卡片 ID
         stream_parser = StreamCardParser(product_lookup=product_lookup)
+
+        _CLARIFY_PATTERNS = [
+            "你想了解哪", "你想看哪", "你想要哪", "哪一品类", "哪一类",
+            "你想找哪", "需要了解", "能说具体", "能具体", "可以具体",
+            "想了解什么", "想看什么", "需要什么", "有什么需求",
+            "我帮您看看", "我帮你看看",
+        ]
+
+        def _check_clarify(text: str) -> bool:
+            return any(p in text for p in _CLARIFY_PATTERNS) and len(text) < 80
 
         try:
             async for chunk in self.doubao.stream_response(prompt):
                 response_content += chunk
                 for event in stream_parser.feed(chunk):
                     if event["type"] == "content":
-                        buffered_content_events.append(event['content'])
+                        buffered_text_for_guard.append(event['content'])
+                        yield ev_content(event['content']).to_sse_compact()  # 🔧 实时流式输出文字
                     elif event["type"] == "product_card":
                         pid = event["product_id"]
                         prod = product_lookup.get(pid)
                         if prod:
-                            buffered_card_events.append((pid, prod))
+                            streamed_card_ids.add(pid)
+                            yield product_card_compact(pid, prod).to_sse_compact()  # 🔧 卡片紧跟文字
 
             for event in stream_parser.flush():
                 if event["type"] == "content":
-                    buffered_content_events.append(event['content'])
+                    buffered_text_for_guard.append(event['content'])
+                    yield ev_content(event['content']).to_sse_compact()
                 elif event["type"] == "product_card":
                     pid = event["product_id"]
                     prod = product_lookup.get(pid)
                     if prod:
-                        buffered_card_events.append((pid, prod))
+                        streamed_card_ids.add(pid)
+                        yield product_card_compact(pid, prod).to_sse_compact()
 
-            # 🔧 反问/追问检测：LLM 回复以问句开头 → 替换为直接推荐
-            full_text = "".join(buffered_content_events).strip()
-            _CLARIFY_PATTERNS = [
-                "你想了解哪", "你想看哪", "你想要哪", "哪一品类", "哪一类",
-                "你想找哪", "需要了解", "能说具体", "能具体", "可以具体",
-                "想了解什么", "想看什么", "需要什么", "有什么需求",
-                "我帮您看看", "我帮你看看",
-            ]
-            is_clarify_response = any(p in full_text for p in _CLARIFY_PATTERNS) and len(full_text) < 80
-
-            if is_clarify_response and products:
-                print(f"[search_agent] ⚠️ 检测到反问回复，替换为推荐开场: '{full_text[:60]}'", flush=True)
+            # 🔧 反问/追问检测（后置）：仅在 0 张卡片已发送时生效
+            # 有卡片 → LLM 确实在推荐，不是反问；无卡片 → 可能是反问，需替换
+            full_text = "".join(buffered_text_for_guard).strip()
+            if _check_clarify(full_text) and products and not streamed_card_ids:
+                print(f"[search_agent] ⚠️ 检测到反问回复（0 cards），替换为推荐开场: '{full_text[:60]}'", flush=True)
                 cat_label = original_category or category or "商品"
                 product_names = "、".join(p.get('name', '')[:12] for p in products_dict[:4])
                 corrected_intro = f"帮你找了几款{cat_label}～{product_names}，看看有没有喜欢的！"
-                yield ev_content(corrected_intro).to_sse_compact()
-            else:
-                for text in buffered_content_events:
-                    yield ev_content(text).to_sse_compact()
-
-            for pid, prod in buffered_card_events:
-                yield product_card_compact(pid, prod).to_sse_compact()
+                yield ev_content("\n" + corrected_intro).to_sse_compact()
+                # 🔧 兜底：LLM 没标卡片时，手动推送所有商品
+                for p in products:
+                    pd_ = product_lookup.get(p.id)
+                    if pd_:
+                        streamed_card_ids.add(p.id)
+                        yield product_card_compact(p.id, pd_).to_sse_compact()
 
         except Exception as e:
             print(f"[search_agent] 流式失败: {e}")
@@ -542,9 +549,9 @@ class SearchAgent:
         except Exception as e:
             print(f"[db] 保存助手消息失败（非致命）: {e}")
 
-        # 兜底卡片：推送所有未被 LLM 通过标记展示的商品
+        # 兜底卡片：推送所有未被 LLM 通过标记展示的商品（跳过已流式发送的）
         recommended_ids = [pid.strip() for pid in PRODUCT_CARD_PATTERN.findall(response_content)]
-        recommended_set = set(recommended_ids)
+        recommended_set = set(recommended_ids) | streamed_card_ids
         for p in products:
             if p.id not in recommended_set:
                 pd_ = product_lookup.get(p.id)

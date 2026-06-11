@@ -9,7 +9,6 @@ import com.example.ecommerceaiagent.model.MessageItem
 import com.example.ecommerceaiagent.model.MessageItem.ContentBlock
 import com.example.ecommerceaiagent.model.Product
 import com.example.ecommerceaiagent.repository.ChatRepository
-import com.example.ecommerceaiagent.utils.IntentRecognizer
 import com.example.ecommerceaiagent.utils.ImageCompressor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -106,21 +105,6 @@ class ChatViewModel : ViewModel() {
                 timestamp = System.currentTimeMillis()
             )
             _messages.update { it + userMessage }
-
-            // 使用IntentRecognizer识别用户意图
-            val intent = IntentRecognizer.recognizeIntent(text)
-            val intentResponse = IntentRecognizer.getIntentResponse(intent)
-
-            if (intentResponse.isNotEmpty()) {
-                // 如果是打招呼或随便逛逛，直接返回本地响应，不调用服务器
-                val aiMessage = MessageItem.AiMessage(
-                    contentBlocks = listOf(ContentBlock.TextBlock(intentResponse)),
-                    timestamp = System.currentTimeMillis(),
-                    isComplete = true
-                )
-                _messages.update { it + aiMessage }
-                return@launch
-            }
 
             // 加入队列处理
             messageQueue.send(text)
@@ -585,32 +569,4 @@ class ChatViewModel : ViewModel() {
         super.onCleared()
         messageQueue.close()
     }
-
-    // ── 增强方法（RAGent 模式）──
-
-    /** 添加/替换状态气泡：只在消息列表末尾保留一条，新状态替换旧状态 */
-    private fun addStatus(msg: String) {
-        _messages.update { messages ->
-            val idx = messages.indexOfLast { it is MessageItem.StatusMessage }
-            if (idx >= 0) {
-                messages.toMutableList().apply { set(idx, MessageItem.StatusMessage(msg)) }
-            } else {
-                messages + MessageItem.StatusMessage(msg)
-            }
-        }
-        _scrollTick.value += 1
-    }
-
-    private fun replaceOrAddStatus(messages: List<MessageItem>, status: MessageItem.StatusMessage): List<MessageItem> {
-        val idx = messages.indexOfLast { it is MessageItem.StatusMessage }
-        return if (idx >= 0) messages.toMutableList().apply { set(idx, status) }
-        else messages + status
-    }
-
-    /** 将流式文字气泡锁定（isStreaming = false），准备在其后添加卡片/选项等组件 */
-    private fun finalizeStreamingText(messages: List<MessageItem>): List<MessageItem> =
-        messages.map { msg ->
-            if (msg is MessageItem.AiMessage && !msg.isComplete) msg.copy(isComplete = true, isStreaming = false)
-            else msg
-        }
 }

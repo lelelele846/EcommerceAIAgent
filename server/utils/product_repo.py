@@ -134,3 +134,40 @@ class ProductRepo:
 
 # 全局单例
 product_repo = ProductRepo()
+
+
+def products_to_dict_list(products, base_url: str = "") -> list:
+    """将商品对象统一转换为字典列表（共享工具，供 routers 使用）"""
+    if not products:
+        return []
+
+    result = []
+    for i, p in enumerate(products):
+        try:
+            if hasattr(p, 'to_dict'):
+                result.append(p.to_dict(base_url=base_url))
+            elif isinstance(p, dict):
+                product_dict = p.copy()
+                if 'image_path' in product_dict and 'image_url' not in product_dict:
+                    image_path = product_dict['image_path']
+                    if image_path:
+                        if image_path.startswith('http'):
+                            product_dict['image_url'] = image_path
+                        else:
+                            product_dict['image_url'] = f"{base_url}/api/products/image/{product_dict.get('id', '')}"
+                result.append(product_dict)
+            else:
+                result.append({
+                    "id": getattr(p, 'id', str(i)),
+                    "name": getattr(p, 'title', getattr(p, 'name', f"Product {i}")),
+                    "brand": getattr(p, 'brand', "Unknown"),
+                    "category": getattr(p, 'category', "Unknown"),
+                    "price": getattr(p, 'base_price', getattr(p, 'price', 0.0)),
+                    "image_url": "",
+                    "rating": 4.5,
+                    "review_count": 1000,
+                    "description": getattr(p, 'description', "暂无描述")
+                })
+        except Exception as e:
+            print(f"转换商品 {i} 失败: {str(e)}")
+    return result

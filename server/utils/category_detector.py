@@ -76,7 +76,7 @@ CATEGORY_MAP = [
 
 
 def detect_category(query: str) -> str:
-    """根据用户查询识别商品类目"""
+    """根据用户查询识别商品类目（返回第一个匹配的类目）"""
     query_lower = query.lower()
 
     for keywords, category in CATEGORY_MAP:
@@ -85,3 +85,23 @@ def detect_category(query: str) -> str:
                 return category
 
     return None  # 默认不限制类目
+
+
+def detect_all_categories(query: str) -> list[str]:
+    """检测查询中涉及的所有类目（用于跨类目检索）。
+
+    例如 "露营的零食和衣服" → ["服饰运动", "食品饮料"]
+    如果查询只涉及单个类目，返回单元素列表。
+    不涉及任何类目时返回空列表。
+    """
+    query_lower = query.lower()
+    matched = []
+
+    for keywords, category in CATEGORY_MAP:
+        for keyword in keywords:
+            if keyword in query_lower:
+                if category not in matched:
+                    matched.append(category)
+                break  # 该类目已命中，检查下一个类目
+
+    return matched

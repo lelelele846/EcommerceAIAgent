@@ -32,10 +32,8 @@ sealed class ChatMessage {
     /** 单张商品卡片 */
     data class AiProductCard(val product: Product) : ChatMessage()
 
-    /** 横滑商品列表（HorizontalPager） */
-    data class AiProductList(val products: List<Product>, val searchType: String = "text") : ChatMessage()
 
-    /** 多商品对比表格 */
+/** 多商品对比表格 */
     data class AiComparison(val products: List<Product>, val dimensions: List<ComparisonDimension>, val recommendation: String = "") : ChatMessage()
 
     /** Agent 反问 + 选项按钮（FlowRow 自适应布局） */

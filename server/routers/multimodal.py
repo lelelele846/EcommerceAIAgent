@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse, Response
+from utils.product_repo import products_to_dict_list
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
 
@@ -8,22 +9,20 @@ _audio_service = None
 _image_service = None
 _retriever = None
 _session_manager = None
-_capability_manager = None
 _doubao_service = None
 
 
-def set_services(audio_service, image_service, retriever, session_manager, capability_manager, doubao_service):
-    global _audio_service, _image_service, _retriever, _session_manager, _capability_manager, _doubao_service
+def set_services(audio_service, image_service, retriever, session_manager, doubao_service):
+    global _audio_service, _image_service, _retriever, _session_manager, _doubao_service
     _audio_service = audio_service
     _image_service = image_service
     _retriever = retriever
     _session_manager = session_manager
-    _capability_manager = capability_manager
     _doubao_service = doubao_service
 
 
 def _check_services_initialized():
-    if None in [_audio_service, _image_service, _retriever, _session_manager, _capability_manager, _doubao_service]:
+    if None in [_audio_service, _image_service, _retriever, _session_manager, _doubao_service]:
         raise HTTPException(status_code=503, detail="服务正在初始化中，请稍后重试")
 
 
@@ -34,44 +33,6 @@ def get_base_url(http_request: Request) -> str:
     host = http_request.headers.get("host", "localhost:8080")
     scheme = http_request.headers.get("x-forwarded-proto", "http")
     return f"{scheme}://{host}"
-
-
-def products_to_dict_list(products, base_url: str) -> list:
-    if not products:
-        return []
-    
-    result = []
-    for i, p in enumerate(products):
-        try:
-            if hasattr(p, 'to_dict'):
-                result.append(p.to_dict(base_url=base_url))
-            elif isinstance(p, dict):
-                # 已经是字典格式，直接使用
-                product_dict = p.copy()
-                if 'image_path' in product_dict and 'image_url' not in product_dict:
-                    image_path = product_dict['image_path']
-                    if image_path:
-                        if image_path.startswith('http'):
-                            product_dict['image_url'] = image_path
-                        else:
-                            product_dict['image_url'] = f"{base_url}/api/products/image/{product_dict.get('id', '')}"
-                result.append(product_dict)
-            else:
-                print(f"[WARN] 商品 {i} 缺少 to_dict 方法, type={type(p).__name__}")
-                result.append({
-                    "id": getattr(p, 'id', str(i)),
-                    "name": getattr(p, 'title', getattr(p, 'name', f"Product {i}")),
-                    "brand": getattr(p, 'brand', "Unknown"),
-                    "category": getattr(p, 'category', "Unknown"),
-                    "price": getattr(p, 'base_price', getattr(p, 'price', 0.0)),
-                    "image_url": "",
-                    "rating": 4.5,
-                    "review_count": 1000,
-                    "description": getattr(p, 'description', "暂无描述")
-                })
-        except Exception as e:
-            print(f"转换商品 {i} 失败: {str(e)}")
-    return result
 
 
 @router.post("/speech/recognize")
@@ -111,19 +72,7 @@ async def speech_recognize(request: Request, file: UploadFile = File(...)):
         "history": session.get_history(5)
     }
 
-    response = _capability_manager.process(text, context)
-
     base_url = get_base_url(request)
-
-    if response.products:
-        return {
-            "recognized_text": text,
-            "reply_text": response.reply_text,
-            "products": products_to_dict_list(response.products, base_url),
-            "need_more_info": response.need_more_info,
-            "questions": response.questions,
-            "session_id": session_id
-        }
 
     from rag.prompt import build_prompt
     from utils.category_detector import detect_category
@@ -391,21 +340,7 @@ async def voice_chat(request: Request, file: UploadFile = File(...)):
         "history": session.get_history(5)
     }
 
-    response = _capability_manager.process(text, context)
-
     base_url = get_base_url(request)
-
-    if response.products:
-        speech_audio = await _audio_service.text_to_speech(response.reply_text)
-        return {
-            "recognized_text": text,
-            "reply_text": response.reply_text,
-            "speech_audio_base64": base64.b64encode(speech_audio).decode('utf-8') if speech_audio else "",
-            "products": products_to_dict_list(response.products, base_url),
-            "need_more_info": response.need_more_info,
-            "questions": response.questions,
-            "session_id": session_id
-        }
 
     from rag.prompt import build_prompt
     from utils.category_detector import detect_category

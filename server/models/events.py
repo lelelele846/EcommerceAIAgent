@@ -60,39 +60,10 @@ def tool_progress(tool: str, message: str) -> SSEEvent:
     return SSEEvent(type=EventType.TOOL_PROGRESS, data={"tool": tool, "message": message})
 
 
-def text_delta(text: str) -> SSEEvent:
-    """流式文字增量"""
-    return SSEEvent(type=EventType.TEXT_DELTA, data={"text": text})
-
 
 def content(text: str) -> SSEEvent:
     """兼容旧格式：content 事件"""
     return SSEEvent(type=EventType.CONTENT, data={"content": text})
-
-
-def product_card(
-    product_id: str,
-    title: str,
-    brand: str,
-    image_url: str,
-    price: float,
-    sub_category: str = "",
-    reason: Optional[str] = None,
-    similarity_score: Optional[float] = None,
-) -> SSEEvent:
-    data: dict = {
-        "product_id": product_id,
-        "title": title,
-        "brand": brand,
-        "image_url": image_url,
-        "price": price,
-        "sub_category": sub_category,
-    }
-    if reason is not None:
-        data["reason"] = reason
-    if similarity_score is not None:
-        data["similarity_score"] = similarity_score
-    return SSEEvent(type=EventType.PRODUCT_CARD, data=data)
 
 
 def product_card_compact(product_id: str, product: dict) -> SSEEvent:
@@ -101,13 +72,6 @@ def product_card_compact(product_id: str, product: dict) -> SSEEvent:
         "product_id": product_id,
         "product": product,
     })
-
-
-def product_card_list(products: list[dict], search_type: str = "text") -> SSEEvent:
-    return SSEEvent(
-        type=EventType.PRODUCT_CARD_LIST,
-        data={"products": products, "search_type": search_type},
-    )
 
 
 def comparison_table(
@@ -138,14 +102,6 @@ def clarification(question: str, options: list[str]) -> SSEEvent:
     )
 
 
-def start(message: str = "AI 正在思考...", products: list = None) -> SSEEvent:
-    """兼容旧格式 start 事件"""
-    return SSEEvent(type=EventType.START, data={
-        "message": message,
-        "products": products or [],
-    })
-
-
 def end(complete: bool = True) -> SSEEvent:
     """兼容旧格式 end 事件"""
     return SSEEvent(type=EventType.END, data={"complete": complete})
@@ -155,8 +111,3 @@ def error(code: str, message: str) -> SSEEvent:
     return SSEEvent(type=EventType.ERROR, data={"code": code, "message": message})
 
 
-def done(session_id: str, agent_state: str = "browsing") -> SSEEvent:
-    return SSEEvent(
-        type=EventType.DONE,
-        data={"session_id": session_id, "agent_state": agent_state},
-    )

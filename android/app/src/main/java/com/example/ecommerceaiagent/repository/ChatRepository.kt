@@ -100,24 +100,6 @@ class ChatRepository {
         }
     }
 
-    /** 拍照找货 SSE 流 */
-    fun searchByImageFlow(imageBase64: String, caption: String = ""): Flow<ChatMessage> {
-        if (sessionId == null) sessionId = UUID.randomUUID().toString()
-
-        val baseUrl = "http://192.168.1.108:8080"
-        val url = "$baseUrl/api/image/search"
-        val escapedCaption = caption.replace("\\", "\\\\").replace("\"", "\\\"")
-        val json = """{"image_base64": "$imageBase64", "caption": "$escapedCaption", "session_id": "$sessionId"}"""
-
-        return sseClient.stream(
-            url = url,
-            jsonBody = json,
-            headers = mapOf("X-Session-ID" to sessionId!!),
-        ).mapNotNull { (type, data) ->
-            parseSseEvent(SseEventType.from(type), data)
-        }
-    }
-
     // ===== 解析 SSE 事件 → ChatMessage =====
 
     private fun parseSseEvent(type: SseEventType, data: String): ChatMessage? {
@@ -144,15 +126,6 @@ class ChatRepository {
                     val json = JSONObject(data)
                     val productJson = json.optJSONObject("product") ?: json
                     ChatMessage.AiProductCard(product = parseProductFromJson(productJson))
-                }
-                SseEventType.PRODUCT_CARD_LIST -> {
-                    val json = JSONObject(data)
-                    val arr = json.optJSONArray("products") ?: JSONArray()
-                    val products = (0 until arr.length()).map { i ->
-                        parseProductFromJson(arr.getJSONObject(i))
-                    }
-                    val searchType = json.optString("search_type", "text")
-                    ChatMessage.AiProductList(products, searchType)
                 }
                 SseEventType.COMPARISON_TABLE -> {
                     val json = JSONObject(data)
