@@ -2,13 +2,11 @@ package com.example.ecommerceaiagent.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ═══════════════════════════════════════════════
 // 极简现代 · 克制配色
 // 参考 ChatGPT / Telegram 设计语言
-// ═══════════════════════════════════════════════
 
 // Accent — 唯一强调色
-val Accent = Color(0xFF6366F1)       // Indigo
+val Accent = Color(0xFFFF7043)       // Orange
 
 // Surface
 val Background = Color(0xFFF7F7F8)   // 极浅灰 (ChatGPT style)
@@ -28,6 +26,6 @@ val AiBubble = Color(0xFFFFFFFF)
 
 // 兼容旧引用
 val Primary = Accent
-val PrimaryLight = Color(0xFF818CF8)
-val PrimaryDark = Color(0xFF4F46E5)
-val PrimaryContainer = Color(0xFFEEF2FF)
+val PrimaryLight = Color(0xFFFFAB91)
+val PrimaryDark = Color(0xFFE64A19)
+val PrimaryContainer = Color(0xFFFFF0E6)

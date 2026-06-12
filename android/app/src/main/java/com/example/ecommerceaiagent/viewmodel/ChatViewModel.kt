@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ecommerceaiagent.model.MessageItem
+import com.example.ecommerceaiagent.model.OrderConfirmed
 import com.example.ecommerceaiagent.model.MessageItem.ContentBlock
 import com.example.ecommerceaiagent.model.Product
 import com.example.ecommerceaiagent.repository.ChatRepository
@@ -35,6 +36,12 @@ class ChatViewModel : ViewModel() {
     private val _toastMessage = MutableStateFlow("")
     val toastMessage: StateFlow<String> = _toastMessage.asStateFlow()
 
+    // 下单成功事件（从 SSE order_confirmed 触发成功页）
+    private val _orderConfirmed = MutableStateFlow<OrderConfirmed?>(null)
+    val orderConfirmed: StateFlow<OrderConfirmed?> = _orderConfirmed.asStateFlow()
+
+    fun clearOrderConfirmed() { _orderConfirmed.value = null }
+
     // 消息队列：用于排队处理用户消息
     private val messageQueue = Channel<String>(Channel.UNLIMITED)
 
@@ -53,12 +60,13 @@ class ChatViewModel : ViewModel() {
 
     private val chatRepository = ChatRepository()
 
-    // 会话ID，用于标识当前对话
+    // 会话ID，用于标识当前对话（统一 REST 购物车和 SSE 聊天使用相同会话）
     private var _sessionId: String? = null
     val sessionId: String?
         get() {
             if (_sessionId == null) {
                 _sessionId = java.util.UUID.randomUUID().toString()
+                chatRepository.setSessionId(_sessionId!!)
             }
             return _sessionId
         }
@@ -108,126 +116,6 @@ class ChatViewModel : ViewModel() {
 
             // 加入队列处理
             messageQueue.send(text)
-        }
-    }
-
-    /**
-     * 发送语音消息
-     */
-    fun sendVoiceMessage(context: Context, audioFile: File) {
-        if (isAiBusy()) return  // AI 正在回复，拦截
-        viewModelScope.launch {
-            // 添加用户消息（语音 — 先显示"语音消息"占位）
-            val userMessage = MessageItem.UserMessage(
-                text = "语音消息",
-                timestamp = System.currentTimeMillis(),
-                isVoiceMessage = true
-            )
-            _messages.update { it + userMessage }
-
-            // 添加TypingIndicator
-            _messages.update { it + MessageItem.TypingIndicator }
-
-            try {
-                // 调用语音识别API
-                chatRepository.sendVoiceMessage(context, audioFile, object : ChatRepository.ChatCallback {
-                    override fun onRecognizedText(text: String) {
-                        // 识别成功 → 把用户气泡从"语音消息"更新为识别出的文字
-                        viewModelScope.launch(Dispatchers.Main) {
-                            _messages.update { messages ->
-                                messages.toMutableList().apply {
-                                    // 找到用户语音消息并更新为文字消息
-                                    val idx = indexOfLast { it is MessageItem.UserMessage && it.isVoiceMessage }
-                                    if (idx >= 0) {
-                                        this[idx] = MessageItem.UserMessage(
-                                            text = text,
-                                            timestamp = System.currentTimeMillis(),
-                                            isVoiceMessage = false
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onMessageReceived(content: String) {
-                        viewModelScope.launch(Dispatchers.Main) {
-                            collectedText += content
-                        }
-                    }
-
-                    override fun onProductReceived(product: Product) {
-                        viewModelScope.launch(Dispatchers.Main) {
-                            if (collectedText.isNotEmpty()) {
-                                collectedBlocks.add(ContentBlock.TextBlock(collectedText))
-                                collectedText = ""
-                            }
-                            collectedBlocks.add(ContentBlock.ProductBlock(product))
-                        }
-                    }
-
-                    override fun onComplete() {
-                        viewModelScope.launch(Dispatchers.Main) {
-                            if (collectedText.isNotEmpty()) {
-                                collectedBlocks.add(ContentBlock.TextBlock(collectedText))
-                                collectedText = ""
-                            }
-                            
-                            // 移除TypingIndicator
-                            _messages.update { messages ->
-                                messages.toMutableList().apply {
-                                    removeLast()
-                                }
-                            }
-                            
-                            // 添加AI回复
-                            if (collectedBlocks.isNotEmpty()) {
-                                val aiMessage = MessageItem.AiMessage(
-                                    contentBlocks = collectedBlocks.toList(),
-                                    timestamp = System.currentTimeMillis(),
-                                    isComplete = true
-                                )
-                                _messages.update { it + aiMessage }
-                            }
-                            
-                            collectedBlocks.clear()
-                        }
-                    }
-
-                    override fun onError(error: String) {
-                        viewModelScope.launch(Dispatchers.Main) {
-                            // 移除TypingIndicator
-                            _messages.update { messages ->
-                                messages.toMutableList().apply {
-                                    removeLast()
-                                }
-                            }
-                            
-                            val errorMessage = MessageItem.AiMessage(
-                                contentBlocks = listOf(ContentBlock.TextBlock("语音识别失败：$error")),
-                                timestamp = System.currentTimeMillis(),
-                                isComplete = true
-                            )
-                            _messages.update { it + errorMessage }
-                        }
-                    }
-                })
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "语音消息发送失败", e)
-                // 移除TypingIndicator
-                _messages.update { messages ->
-                    messages.toMutableList().apply {
-                        removeLast()
-                    }
-                }
-                
-                val errorMessage = MessageItem.AiMessage(
-                    contentBlocks = listOf(ContentBlock.TextBlock("语音消息发送失败：${e.message}")),
-                    timestamp = System.currentTimeMillis(),
-                    isComplete = true
-                )
-                _messages.update { it + errorMessage }
-            }
         }
     }
 
@@ -402,7 +290,6 @@ class ChatViewModel : ViewModel() {
 
                 override fun onComparisonReceived(products: List<Product>, aiAnalysis: String) {
                     viewModelScope.launch(Dispatchers.Main) {
-                        // 对比卡片作为一个独立块
                         if (collectedText.isNotEmpty()) {
                             collectedBlocks.add(ContentBlock.TextBlock(collectedText))
                             collectedText = ""
@@ -419,6 +306,22 @@ class ChatViewModel : ViewModel() {
                             collectedText = ""
                         }
                         collectedBlocks.add(ContentBlock.ClarificationBlock(question, options))
+                    }
+                }
+
+                override fun onCartUpdate(items: List<com.example.ecommerceaiagent.model.CartItem>, total: Double, count: Int, action: String) {
+                    viewModelScope.launch(Dispatchers.Main) {
+                        when (action) {
+                            "add" -> _toastMessage.value = "已加入购物车"
+                            "remove" -> _toastMessage.value = "已从购物车移除"
+                            "ordered" -> _toastMessage.value = "下单成功！"
+                        }
+                    }
+                }
+
+                override fun onOrderConfirmed(orderId: String, items: List<com.example.ecommerceaiagent.model.CartItem>, total: Double) {
+                    viewModelScope.launch(Dispatchers.Main) {
+                        _orderConfirmed.value = OrderConfirmed(orderId, items, total, items.size)
                     }
                 }
 

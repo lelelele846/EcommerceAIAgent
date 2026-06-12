@@ -1,12 +1,13 @@
 """
-Attribute Matcher — 结构化属性匹配，作为 RRF 第三路召回。
+结构化属性匹配器，作为混合检索的第三路召回源。
 
-与向量检索（语义）和 BM25（词频）互补：
-- 用户说"耐克" → 精确匹配 brand 字段
-- 用户说"200以内" → 精确匹配 price 范围
-- 用户说"跑步鞋" → 匹配 sub_category + title 中的关键词
+与向量检索和 BM25 检索形成互补：
+    - 品牌精确匹配：如"耐克"直接匹配品牌字段
+    - 价格范围匹配：如"200以内"应用价格过滤
+    - 类目关键词匹配：如"跑步鞋"匹配子类目和标题
 
-输出格式与 ChromaDB/BM25 一致：[{id, document, metadata, score}, ...]
+输出格式与 ChromaDB、BM25 保持一致，便于后续 RRF 融合：
+    [{id, document, metadata, score}, ...]
 """
 import re
 from typing import Any, Optional

@@ -13,7 +13,6 @@ sealed class MessageItem {
         val isComplete: Boolean = true,
         val isStreaming: Boolean = false,    // 流式写入中，末尾显示光标
     ) : MessageItem()
-    data class StatusMessage(val message: String) : MessageItem()  // 思考/检索状态（替换式，不累积）
     object TypingIndicator : MessageItem()
 
     // 内容块：可以是文本、商品卡片、对比卡片或反问选项

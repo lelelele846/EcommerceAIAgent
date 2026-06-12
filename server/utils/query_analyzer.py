@@ -1,11 +1,29 @@
 """
-意图澄清层：检测模糊查询、生成反问、提取偏好
+查询分析器 — 检测模糊查询、提取用户偏好、生成澄清反问。
+
+核心职责：
+    1. 模糊检测：判断查询是否过于笼统需要追问澄清
+    2. 偏好提取：从查询中提取价格、品牌、肤质、口味等偏好
+    3. 生成反问：根据类目生成自然的澄清问题
+
+支持的偏好类型：
+    - 价格范围：通过 price_parser 解析
+    - 品牌倾向：国产/国际/性价比
+    - 肤质类型：干性/油性/混合性/敏感性/中性
+    - 功效需求：保湿/美白/抗老/祛痘/控油等
+    - 口味偏好：辣/甜/酸/咸/清淡
+    - 运动类型：跑步/健身/篮球/瑜伽/户外等
+    - 风格偏好：休闲/运动/商务/时尚/复古
+
+关键设计：
+    - 一次遍历同时完成模糊检测和偏好提取，高效
+    - 不同类目有不同的关键维度，生成针对性反问
+    - 闺蜜风格的反问话术，自然口语化
 """
 from typing import Optional, Dict, List, Tuple
 from utils.price_parser import detect_price_range
 
 
-# ── 具体偏好关键词（出现任意一个说明用户已经说了细节，不需要澄清）──
 SPECIFIC_FEATURE_KEYWORDS = [
     # 数码
     '拍照', '摄像', '续航', '性能', '轻薄', '屏幕', '高刷', '快充', '无线充',
@@ -23,7 +41,6 @@ SPECIFIC_FEATURE_KEYWORDS = [
     '性价比', '高端', '国产', '便宜', '实惠', '耐用', '轻量', '防水', '透气', '速干',
 ]
 
-# ── 具体产品/子类目关键词（说明用户已经缩小了范围，来自真实数据库）──
 SPECIFIC_PRODUCT_KEYWORDS = [
     # 美妆
     '洗面奶', '面膜', '面霜', '精华', '防晒', '防晒霜', '防晒乳',
@@ -49,7 +66,6 @@ SPECIFIC_PRODUCT_KEYWORDS = [
     '雀巢', '三只松鼠', '良品铺子', '百草味', '元气森林', '康师傅', '统一',
 ]
 
-# ── 统一品牌列表（来自真实数据库全部61个品牌 + 常用别名）──
 ALL_BRANDS = [
     # 数码电子
     '苹果', 'apple', '华为', 'huawei', '小米', 'xiaomi', 'oppo', 'vivo', '联想', 'lenovo',
@@ -74,7 +90,6 @@ ALL_BRANDS = [
     '李锦记', '海天',
 ]
 
-# ── 类目 → 澄清维度 ──
 CATEGORY_DIMENSIONS = {
     '数码电子': {
         'dimensions': ['功能侧重（拍照/续航/性能/轻薄）', '预算范围', '品牌倾向（国产/国际/性价比）'],
@@ -108,32 +123,27 @@ def analyze_query(query: str, category: str = None) -> Dict:
     prefs = {}
     is_specific = False
 
-    # ── 1. 具体偏好词 ──
     for kw in SPECIFIC_FEATURE_KEYWORDS:
         if kw in text:
             is_specific = True
             break
 
-    # ── 2. 具体产品 ──
     if not is_specific:
         for kw in SPECIFIC_PRODUCT_KEYWORDS:
             if kw in text:
                 is_specific = True
                 break
 
-    # ── 3. 价格 ──
     price = detect_price_range(query)
     if price and price != (0, float('inf')):
         is_specific = True
         prefs['price_range'] = price
 
-    # ── 4. 品牌 ──
     matched_brands = [b for b in ALL_BRANDS if b.lower() in text_lower]
     if matched_brands:
         is_specific = True
         prefs['preferred_brands'] = matched_brands
 
-    # ── 5. 数码电子偏好 ──
     key_features = []
     if any(w in text_lower for w in ['拍照', '摄像', '相机', '摄影']): key_features.append('拍照')
     if any(w in text_lower for w in ['续航', '电池', '电量']): key_features.append('续航')
@@ -147,7 +157,6 @@ def analyze_query(query: str, category: str = None) -> Dict:
     elif any(w in text_lower for w in ['苹果', 'iphone', '三星', '国际']): prefs['brand_priority'] = '国际'
     elif any(w in text_lower for w in ['性价比', '实惠']): prefs['brand_priority'] = '性价比'
 
-    # ── 6. 美妆护肤偏好 ──
     for kw, skin in [('干皮', '干性'), ('干的', '干性'), ('干性', '干性'),
                      ('油皮', '油性'), ('油性', '油性'),
                      ('混油', '混合性'), ('混干', '混合性'), ('混合性', '混合性'), ('混合', '混合性'),
@@ -167,13 +176,11 @@ def analyze_query(query: str, category: str = None) -> Dict:
     if concerns:
         prefs['skin_concerns'] = concerns
 
-    # ── 7. 食品饮料偏好 ──
     for kw, flavor in [('辣', '辣'), ('甜', '甜'), ('酸', '酸'), ('咸', '咸'), ('清淡', '清淡')]:
         if kw in text_lower:
             prefs['flavor_preference'] = flavor
             break
 
-    # ── 8. 服饰运动偏好 ──
     for kw, sport in [('跑步', '跑步'), ('健身', '健身'), ('篮球', '篮球'), ('瑜伽', '瑜伽'),
                        ('户外', '户外'), ('登山', '登山'), ('骑行', '骑行'), ('游泳', '游泳')]:
         if kw in text_lower:
@@ -185,7 +192,6 @@ def analyze_query(query: str, category: str = None) -> Dict:
             prefs['style'] = style
             break
 
-    # ── 9. 模糊判定 ──
     # 如果检测到了类目，即使 query 短也不算模糊
     is_vague = not is_specific and len(text) <= 8 and not category
 

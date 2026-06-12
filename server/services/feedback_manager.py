@@ -1,9 +1,21 @@
+"""
+用户评价反馈模块 — 收集、存储和分析用户对商品的反馈数据。
+
+数据结构：
+    - Feedback：单条反馈记录（评分、评论、有用标记、改进建议）
+    - FeedbackManager：反馈集合管理器
+
+核心能力：
+    - 评分统计：平均分、分布直方图
+    - 有用率统计：用户认为有帮助的反馈占比
+    - 多维度查询：按会话、按商品筛选反馈
+"""
 import time
 import json
 from typing import List, Dict, Optional
 
 class Feedback:
-    """用户反馈类"""
+    """单条用户反馈记录"""
     def __init__(self, 
                  feedback_id: str,
                  session_id: str,

@@ -1,14 +1,15 @@
 """
-Cross-Encoder Reranker — 在 RRF 融合后对 chunk 做精排。
+Cross-Encoder 精排器，在 RRF 融合后对候选 chunk 进行精排。
 
-比双塔 embedding 更准：Cross-Encoder 同时看 query 和 document，
-输出一个 relevance score（0-1），而非独立编码后算余弦。
+相比双塔向量化模型更精准：
+    Cross-Encoder 同时考虑查询和文档内容进行交互打分，
+    输出一个 0-1 之间的相关性分数，而非分别编码后计算余弦相似度。
 
-流程：
-    RRF top-20 chunks → CrossEncoder(query, chunk) → score → 重排 → 商品聚合
+处理流程：
+    RRF top-20 chunks → CrossEncoder 逐对打分 → 重新排序 → 商品聚合
 
-模型：BAAI/bge-reranker-base（默认，可通过 RERANKER_MODEL 环境变量覆盖）
-首次下载 ~500MB，推理 ~50ms/对，20 对约 1s。
+默认模型：BAAI/bge-reranker-base（可通过 RERANKER_MODEL 环境变量配置）
+模型大小约 500MB，单对推理耗时约 50ms，20 对约 1 秒。
 """
 import os
 from typing import Optional

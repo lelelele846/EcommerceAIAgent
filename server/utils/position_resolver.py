@@ -1,12 +1,12 @@
 """
-位置指代解析器 — 把"第一个"/"这款"/"它"等中文指代映射为真实 product_id。
+中文指代消解器 — 将"第一个"/"这款"/"它"等自然语言指代转换为具体商品 ID。
 
-为什么需要这个：
-  用户说"第一个"时，LLM 经常把 product_id 输出成 "1"、"第一个"、
-  甚至幻觉成 "P001" 这种不存在的 id。代码层做三层兜底：
-    1. 用户原话里直接含位置词 → 按位置取 last_shown 对应项
-    2. LLM 返回的是数字 / 位置词 → 同上
-    3. LLM 返回的 product_id 在 last_shown 里查不到 → 当幻觉处理，回退到 last_shown[0]
+痛点场景：
+    用户说"把第一个加购物车"时，LLM 可能返回 "1"、"第一个" 或编造 "P001" 等不存在的 ID。
+    需要在代码层做三次纠正尝试：
+        第一层：扫描用户原始消息中的位置词（"第一""第二"等）
+        第二层：处理 LLM 返回的数字或位置词
+        第三层：验证 ID 有效性，查不到时回退到最近展示的第一个商品
 """
 
 import re
@@ -50,7 +50,6 @@ def resolve_product_id(
     valid_ids = {p.get("product_id") for p in last_shown if p.get("product_id")}
     pos: Optional[int] = None
 
-    # ── 第1层：用户原话直接扫描位置词（最可信）──────────
     for word, p in _POSITION_WORDS.items():
         if word in user_message:
             pos = p
@@ -60,7 +59,6 @@ def resolve_product_id(
     if pos is None and any(w in user_message for w in _VAGUE_REF_WORDS):
         pos = 1
 
-    # ── 第2层：LLM 给的 product_id 是数字 / 位置词 ──────
     pid = product_id
     if pos is None and pid and isinstance(pid, str):
         if pid.isdigit():
@@ -68,17 +66,14 @@ def resolve_product_id(
         elif pid in _POSITION_WORDS:
             pos = _POSITION_WORDS[pid]
 
-    # ── 按位置取值 ─────────────────────────────────────
     if pos is not None and 1 <= pos <= len(last_shown):
         return last_shown[pos - 1].get("product_id", product_id)
 
-    # ── 第3层：LLM 给的 product_id 不在 last_shown 里 → 幻觉 ──
     if pid and isinstance(pid, str) and pid not in valid_ids:
         # 有模糊指代 → 取第一个
         if any(w in user_message for w in _VAGUE_REF_WORDS) and last_shown:
             return last_shown[0].get("product_id", pid)
 
-    # ── 无法解析 → 原样返回（让下游处理）───────────────
     return product_id
 
 
@@ -89,7 +84,22 @@ def extract_position_from_message(message: str) -> Optional[int]:
     1
     >>> extract_position_from_message("对比第二款和第三款")
     2
+    >>> extract_position_from_message("第2件")
+    2
+    >>> extract_position_from_message("第3台")
+    3
     """
+    # 正则匹配：第 + 数字 + 可选量词（兼容"第2件""第3个""第1款"等任意量词）
+    m = re.search(r'第\s*(\d+)\s*[件个款台把瓶包盒箱袋支罐]?', message)
+    if m:
+        return int(m.group(1))
+    # 中文数字：第一 / 第二 ...
+    m = re.search(r'第\s*([一二三四五六七八九十])\s*[件个款]?', message)
+    if m:
+        chinese = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+                   '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+        return chinese.get(m.group(1))
+    # 回退到静态字典（兼容"最后一个""倒数第一个"等特殊表述）
     for word, pos in sorted(_POSITION_WORDS.items(), key=lambda x: -len(x[0])):
         if word in message:
             return pos
@@ -103,9 +113,13 @@ def has_product_reference(message: str) -> bool:
     True
     >>> has_product_reference("这款怎么样")
     True
+    >>> has_product_reference("第2件")
+    True
     >>> has_product_reference("推荐防晒")
     False
     """
+    if re.search(r'第\s*[一二三四五六七八九十\d]', message):
+        return True
     if any(w in message for w in _POSITION_WORDS):
         return True
     if any(w in message for w in _VAGUE_REF_WORDS):

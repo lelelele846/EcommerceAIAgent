@@ -1,3 +1,17 @@
+"""
+会话状态管理模块 — 维护用户对话上下文和偏好数据。
+
+核心数据结构：
+    - ChatMessage：单条聊天记录（角色、时间戳）
+    - UserPreferences：用户画像（类目、价格、品牌、肤质等），支持跨会话持久化
+    - Session：完整会话单元（消息历史、偏好、意图链、摘要、购物车、下单状态）
+    - SessionManager：会话集合管理器（内存存储 + 线程安全 + 数据库恢复）
+
+特色设计：
+    1. 时空连续性关怀：记住用户生活事件、反复话题、分享的小秘密
+    2. 意图链追踪：记录意图演变过程，支持"换一批"等上下文敏感操作
+    3. 多态存储：内存优先，数据库兜底，服务重启后自动恢复
+"""
 import json
 import time
 import threading
@@ -5,7 +19,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 class ChatMessage:
-    """聊天消息类"""
+    """单条聊天记录"""
     def __init__(self, role: str, content: str, timestamp: float = None):
         self.role = role  # "user" or "assistant"
         self.content = content
@@ -19,7 +33,7 @@ class ChatMessage:
         }
 
 class UserPreferences:
-    """用户偏好类（优化版）- 支持长程关系维护"""
+    """用户画像数据类 — 维护跨会话的用户偏好和个性化信息"""
     def __init__(self):
         # 【通用属性】
         self.category = None  # 当前浏览类目（美妆护肤/数码电子/服饰运动/食品生活等）
@@ -133,6 +147,10 @@ class Session:
         self.scene_context: Optional[Dict] = None
         # 状态机当前状态
         self.agent_state: str = "browsing"
+        # 购物车状态
+        self.cart_items: list[dict] = []  # [{"product_id","name","brand","price","quantity","image_url"}, ...]
+        # 下单状态
+        self.order_state: dict = {}       # {"step":"init|confirm_address|confirm_final|done","address":"...","order_id":"..."}
     
     def add_message(self, role: str, content: str):
         """添加消息"""
@@ -199,6 +217,8 @@ class Session:
             "last_shown_products": self.last_shown_products,
             "search_state": self.search_state,
             "scene_context": self.scene_context,
+            "cart_items": self.cart_items,
+            "order_state": self.order_state,
         }
 
 class SessionManager:
@@ -328,3 +348,54 @@ class SessionManager:
             for sid in expired_ids:
                 del self.sessions[sid]
             return len(expired_ids)
+
+
+    def add_to_cart(self, session_id: str, item: dict) -> list[dict]:
+        """添加商品到购物车，已存在则增加数量"""
+        with self._lock:
+            session = self.sessions.get(session_id)
+            if not session:
+                session = Session(session_id)
+                self.sessions[session_id] = session
+            existing = next((i for i in session.cart_items if i["product_id"] == item["product_id"]), None)
+            if existing:
+                existing["quantity"] += item.get("quantity", 1)
+            else:
+                session.cart_items.append(item)
+            session.last_updated_at = time.time()
+            return list(session.cart_items)
+
+    def get_cart(self, session_id: str) -> list[dict]:
+        """获取购物车内容"""
+        with self._lock:
+            session = self.sessions.get(session_id)
+            return list(session.cart_items) if session else []
+
+    def remove_from_cart(self, session_id: str, index: int) -> list[dict]:
+        """按索引删除购物车商品"""
+        with self._lock:
+            session = self.sessions.get(session_id)
+            if session and 0 <= index < len(session.cart_items):
+                del session.cart_items[index]
+                session.last_updated_at = time.time()
+            return list(session.cart_items) if session else []
+
+    def update_cart_quantity(self, session_id: str, index: int, quantity: int) -> list[dict]:
+        """更新购物车商品数量，quantity ≤ 0 时删除"""
+        with self._lock:
+            session = self.sessions.get(session_id)
+            if session and 0 <= index < len(session.cart_items):
+                if quantity <= 0:
+                    del session.cart_items[index]
+                else:
+                    session.cart_items[index]["quantity"] = quantity
+                session.last_updated_at = time.time()
+            return list(session.cart_items) if session else []
+
+    def clear_cart(self, session_id: str):
+        """清空购物车"""
+        with self._lock:
+            session = self.sessions.get(session_id)
+            if session:
+                session.cart_items = []
+                session.last_updated_at = time.time()

@@ -58,10 +58,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
 
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
@@ -97,11 +99,12 @@ import coil.compose.AsyncImage
 import com.example.ecommerceaiagent.R
 import com.example.ecommerceaiagent.model.MessageItem
 import com.example.ecommerceaiagent.model.MessageItem.ContentBlock
+import com.example.ecommerceaiagent.model.Product
 import com.example.ecommerceaiagent.theme.*
-import com.example.ecommerceaiagent.ui.components.ComparisonCard
 import com.example.ecommerceaiagent.ui.components.ProductCardView
 import com.example.ecommerceaiagent.utils.TtsManager
 import com.example.ecommerceaiagent.viewmodel.ChatViewModel
+import com.example.ecommerceaiagent.viewmodel.CartViewModel
 import java.io.File
 
 private val SUGGESTED_QUESTIONS = listOf(
@@ -125,8 +128,16 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
     val scrollTick by chatViewModel.scrollTick.collectAsState()
     val isBusy = isAiTyping || messages.any { it is MessageItem.TypingIndicator }
 
-    // ── TTS（文字转语音）──────────────────────────────────────
     var ttsEnabled by remember { mutableStateOf(false) }
+
+    var showCart by remember { mutableStateOf(false) }
+    var showCheckout by remember { mutableStateOf(false) }
+    val cartViewModel = remember { CartViewModel() }
+    val cartState by cartViewModel.cartState.collectAsState()
+    val orderConfirmed by chatViewModel.orderConfirmed.collectAsState()
+
+    var showProductDetail by remember { mutableStateOf(false) }
+    var selectedProduct by remember { mutableStateOf<Product?>(null) }
     val ttsManager = remember { TtsManager(context) }
     DisposableEffect(Unit) {
         onDispose { ttsManager.shutdown() }
@@ -157,12 +168,19 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
         lastSpokenText = ""
     }
 
-    // Toast 消息监听
+    // Toast 消息监听（对话 SSE + 购物车按钮）
     val toastMessage by chatViewModel.toastMessage.collectAsState()
     LaunchedEffect(toastMessage) {
         if (toastMessage.isNotEmpty()) {
             Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
             chatViewModel.clearToast()
+        }
+    }
+    val cartToast by cartViewModel.toastMessage.collectAsState()
+    LaunchedEffect(cartToast) {
+        if (!cartToast.isNullOrBlank()) {
+            Toast.makeText(context, cartToast, Toast.LENGTH_SHORT).show()
+            cartViewModel.clearToast()
         }
     }
 
@@ -257,7 +275,6 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
         focusManager.clearFocus()
     }
 
-    // ── BottomSheet ──
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
@@ -273,8 +290,8 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
                 Text("选择功能", fontWeight = FontWeight.SemiBold, fontSize = 20.sp, color = TextPrimary, modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp))
 
                 Row(Modifier.fillMaxWidth().clickable { showBottomSheet = false; launchCamera() }.padding(horizontal = 28.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(PrimaryContainer), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Add, null, tint = Primary, modifier = Modifier.size(24.dp))
+                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFF0E6)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, null, tint = Color(0xFFFF7043), modifier = Modifier.size(24.dp))
                     }
                     Spacer(Modifier.width(16.dp))
                     Column { Text("拍照找货", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary); Text("拍摄实物，智能识别并推荐相似商品", fontSize = 13.sp, color = TextHint) }
@@ -283,8 +300,8 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 28.dp), color = Divider)
 
                 Row(Modifier.fillMaxWidth().clickable { showBottomSheet = false; imagePickerLauncher.launch("image/*") }.padding(horizontal = 28.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFEEF2FF)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Add, null, tint = Color(0xFF6366F1), modifier = Modifier.size(24.dp))
+                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFFFF0E6)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, null, tint = Color(0xFFFF7043), modifier = Modifier.size(24.dp))
                     }
                     Spacer(Modifier.width(16.dp))
                     Column { Text("上传图片", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = TextPrimary); Text("从手机相册选择图片进行识别", fontSize = 13.sp, color = TextHint) }
@@ -293,7 +310,6 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
         }
     }
 
-    // ── 主布局 ──
     Box(modifier = Modifier.fillMaxSize().background(Background)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopBar(
@@ -302,6 +318,7 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
                     ttsEnabled = !ttsEnabled
                     if (!ttsEnabled) ttsManager.stop()
                 },
+                onCartClick = { showCart = true },
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (showWelcome) WelcomeScreen { chatViewModel.sendUserMessage(it) }
@@ -313,15 +330,21 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
                     itemsIndexed(messages, key = { index, _ -> index }) { _, msg ->
                         when (msg) {
                             is MessageItem.UserMessage -> UserBubble(msg, onImageClick = { fullScreenImage = it })
-                            is MessageItem.AiMessage -> AiBubble(msg.contentBlocks, msg.isComplete, msg.isStreaming, onClarificationSelected = { chatViewModel.selectClarification(it) })
-                            is MessageItem.StatusMessage -> StatusBubble(msg.message)
+                            is MessageItem.AiMessage -> AiBubble(msg.contentBlocks, msg.isComplete, msg.isStreaming,
+                                onClarificationSelected = { chatViewModel.selectClarification(it) },
+                                onAddToCart = { product: Product ->
+                                    cartViewModel.addToCart(chatViewModel.sessionId!!, product.id)
+                                },
+                                onProductClick = { product: Product ->
+                                    selectedProduct = product
+                                    showProductDetail = true
+                                })
                             MessageItem.TypingIndicator -> TypingDots()
                         }
                     }
                 }
             }
 
-            // ── 待发送图片预览 ──
             val pendingImage = pendingImageUri ?: pendingCameraFile?.let { Uri.fromFile(it) }
             if (pendingImage != null) {
                 Row(
@@ -367,20 +390,114 @@ fun ChatScreen(chatViewModel: ChatViewModel = viewModel()) {
             )
         }
 
-        // ── 全屏图片查看 ──
         fullScreenImage?.let { imageUri ->
             FullScreenImageDialog(imageUri = imageUri, onDismiss = { fullScreenImage = null })
+        }
+
+        if (showCart) {
+            val sessionId = chatViewModel.sessionId!!
+            CartScreen(
+                sessionId = sessionId,
+                cartViewModel = cartViewModel,
+                onBack = { showCart = false },
+                onCheckout = {
+                    showCart = false
+                    showCheckout = true
+                }
+            )
+        }
+
+        if (showCheckout) {
+            OrderFormScreen(
+                sessionId = chatViewModel.sessionId!!,
+                cart = cartState,
+                onBack = { showCheckout = false; showCart = true },
+                onOrderPlaced = {
+                    showCheckout = false
+                    cartViewModel.loadCart(chatViewModel.sessionId!!)
+                }
+            )
+        }
+
+        if (showProductDetail && selectedProduct != null) {
+            ProductDetailScreen(
+                product = selectedProduct!!,
+                onBack = { showProductDetail = false },
+                onAddToCart = { product ->
+                    cartViewModel.addToCart(chatViewModel.sessionId!!, product.id)
+                },
+                onBuyNow = { product ->
+                    cartViewModel.addToCart(chatViewModel.sessionId!!, product.id)
+                    showProductDetail = false
+                    showCheckout = true
+                }
+            )
+        }
+
+        if (orderConfirmed != null) {
+            val oc = orderConfirmed!!
+            val orange = Color(0xFFFF7043)
+            Column(
+                Modifier.fillMaxSize().background(Color.White).statusBarsPadding()
+            ) {
+                Surface(color = Color.White, shadowElevation = 1.dp) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("订单详情", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF333333),
+                            modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF16A34A), modifier = Modifier.size(72.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Text("下单成功", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(24.dp))
+                    Surface(Modifier.fillMaxWidth().padding(horizontal = 24.dp), shape = RoundedCornerShape(14.dp), color = Color(0xFFFAFAFA)) {
+                        Column(Modifier.padding(20.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("订单编号", fontSize = 14.sp, color = Color.Gray)
+                                Text(oc.orderId, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = Color(0xFFEEEEEE))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("商品数量", fontSize = 14.sp, color = Color.Gray)
+                                Text("${oc.count} 件", fontSize = 14.sp)
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = Color(0xFFEEEEEE))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("合计", fontSize = 14.sp, color = Color.Gray)
+                                Text("¥${"%.2f".format(oc.total)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE53935))
+                            }
+                        }
+                    }
+                }
+                Surface(Modifier.fillMaxWidth().navigationBarsPadding(), shadowElevation = 8.dp, color = Color.White) {
+                    Button(
+                        onClick = { chatViewModel.clearOrderConfirmed() },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = orange)
+                    ) {
+                        Text("返回继续购物", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
     }
 }
 
-// ═══════════════════════════════
 // TopBar — 极简，无多余元素
-// ═══════════════════════════════
 @Composable
 private fun TopBar(
     ttsEnabled: Boolean = false,
     onTtsToggle: () -> Unit = {},
+    onCartClick: () -> Unit = {},
 ) {
     Surface(color = Surface, shadowElevation = 0.dp) {
         Row(
@@ -391,6 +508,14 @@ private fun TopBar(
             Spacer(Modifier.width(10.dp))
             Text("AI 购物助手", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
             Spacer(Modifier.weight(1f))
+            // 购物车
+            IconButton(onClick = onCartClick) {
+                Icon(
+                    Icons.Filled.ShoppingCart,
+                    contentDescription = "购物车",
+                    tint = TextPrimary,
+                )
+            }
             IconButton(onClick = onTtsToggle) {
                 Icon(
                     if (ttsEnabled) Icons.Filled.VolumeUp
@@ -403,9 +528,7 @@ private fun TopBar(
     }
 }
 
-// ═══════════════════════════════
 // Welcome — 干净开场
-// ═══════════════════════════════
 @Composable
 private fun WelcomeScreen(onQuestionClick: (String) -> Unit) {
     Column(
@@ -442,9 +565,7 @@ private fun WelcomeScreen(onQuestionClick: (String) -> Unit) {
     }
 }
 
-// ═══════════════════════════════
 // InputBar
-// ═══════════════════════════════
 @Composable
 private fun InputBar(
     inputText: String, onInputChange: (String) -> Unit, onSend: () -> Unit,
@@ -458,15 +579,13 @@ private fun InputBar(
     Surface(color = Surface, shadowElevation = 8.dp) {
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // ── 左侧 [+] 按钮 ──
             IconButton(onClick = onCameraClick, modifier = Modifier.size(42.dp)) {
                 Icon(Icons.Default.Add, "更多", tint = TextSecondary, modifier = Modifier.size(22.dp))
             }
 
-            // ── 输入框 ──
             OutlinedTextField(
                 value = inputText,
                 onValueChange = onInputChange,
@@ -485,7 +604,6 @@ private fun InputBar(
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
             )
 
-            // ── 发送按钮 ──
             IconButton(
                 onClick = { onSend() },
                 enabled = canSend,
@@ -494,7 +612,7 @@ private fun InputBar(
                 Icon(
                     if (isBusy) Icons.Default.Close else Icons.Default.Send,
                     contentDescription = if (isBusy) "停止生成" else "发送",
-                    tint = if (canSend) Primary else TextHint,
+                    tint = if (canSend) Color(0xFFFF7043) else TextHint,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -502,9 +620,7 @@ private fun InputBar(
     }
 }
 
-// ═══════════════════════════════
 // User Bubble — 深灰 (ChatGPT style)
-// ═══════════════════════════════
 @Composable
 private fun UserBubble(msg: MessageItem.UserMessage, onImageClick: (String) -> Unit = {}) {
     val hasImage = msg.imageUri != null
@@ -550,11 +666,9 @@ private fun UserBubble(msg: MessageItem.UserMessage, onImageClick: (String) -> U
     }
 }
 
-// ═══════════════════════════════
 // AI Bubble — 白底
-// ═══════════════════════════════
 @Composable
-private fun AiBubble(blocks: List<ContentBlock>, isComplete: Boolean, isStreaming: Boolean = false, onClarificationSelected: (String) -> Unit = {}) {
+private fun AiBubble(blocks: List<ContentBlock>, isComplete: Boolean, isStreaming: Boolean = false, onClarificationSelected: (String) -> Unit = {}, onAddToCart: (Product) -> Unit = {}, onProductClick: (Product) -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Top) {
         Image(painterResource(R.drawable.ai_avatar), "AI", Modifier.size(32.dp).clip(CircleShape), contentScale = ContentScale.Crop)
         Spacer(Modifier.width(10.dp))
@@ -574,8 +688,15 @@ private fun AiBubble(blocks: List<ContentBlock>, isComplete: Boolean, isStreamin
                                 color = TextPrimary, fontSize = 15.sp, lineHeight = 24.sp
                             )
                         }
-                        is ContentBlock.ProductBlock -> ProductCardView(product = block.product)
-                        is ContentBlock.ComparisonBlock -> ComparisonCard(products = block.products, aiAnalysis = block.aiAnalysis)
+                        is ContentBlock.ProductBlock -> ProductCardView(
+                            product = block.product,
+                            onClick = { onProductClick(block.product) },
+                            onAddToCart = onAddToCart
+                        )
+                        is ContentBlock.ComparisonBlock -> Text(
+                            text = parseMarkdown(block.aiAnalysis),
+                            color = TextPrimary, fontSize = 15.sp, lineHeight = 24.sp
+                        )
                         is ContentBlock.ClarificationBlock -> ClarificationChips(
                             question = block.question,
                             options = block.options,
@@ -592,10 +713,7 @@ private fun AiBubble(blocks: List<ContentBlock>, isComplete: Boolean, isStreamin
                             block is ContentBlock.ProductBlock && next is ContentBlock.TextBlock -> 20.dp
                             // 商品卡片之间：紧贴
                             block is ContentBlock.ProductBlock && next is ContentBlock.ProductBlock -> 4.dp
-                            // 对比卡片 → 后续文字
-                            block is ContentBlock.ComparisonBlock && next is ContentBlock.TextBlock -> 20.dp
-                            // 文字 → 对比卡片
-                            block is ContentBlock.TextBlock && next is ContentBlock.ComparisonBlock -> 8.dp
+                            
                             // 默认标准间距
                             else -> 12.dp
                         }
@@ -608,55 +726,7 @@ private fun AiBubble(blocks: List<ContentBlock>, isComplete: Boolean, isStreamin
     }
 }
 
-// ═══════════════════════════════
-// Status Bubble — 思考/检索状态（替换式，带动画圆点）
-// ═══════════════════════════════
-@Composable
-private fun StatusBubble(message: String) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-        Surface(
-            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
-            color = AiBubble,
-            shadowElevation = 2.dp,
-            border = BorderStroke(1.dp, Divider),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                val transition = rememberInfiniteTransition(label = "typing")
-                repeat(3) { i ->
-                    val scale by transition.animateFloat(
-                        initialValue = 0.5f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(500, delayMillis = i * 160, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse,
-                        ),
-                        label = "dot_$i",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .graphicsLayer { scaleX = scale; scaleY = scale }
-                            .clip(CircleShape)
-                            .background(Primary.copy(alpha = 0.4f + 0.6f * scale)),
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    message,
-                    style = TextStyle(fontSize = 13.sp, color = TextSecondary),
-                )
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════
 // Typing
-// ═══════════════════════════════
 @Composable
 private fun TypingDots() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Bottom) {
@@ -678,9 +748,7 @@ private fun Dot(size: androidx.compose.ui.unit.Dp, delay: Int) {
     Box(Modifier.size(size).scale(s).clip(CircleShape).background(TextHint.copy(alpha = a)))
 }
 
-// ═══════════════════════════════
 // Markdown 解析 — 支持 **加粗**
-// ═══════════════════════════════
 private fun parseMarkdown(text: String): androidx.compose.ui.text.AnnotatedString {
     return buildAnnotatedString {
         var i = 0
@@ -711,9 +779,7 @@ private fun parseMarkdown(text: String): androidx.compose.ui.text.AnnotatedStrin
     }
 }
 
-// ═══════════════════════════════
 // Clarification Chips — 可点击反问选项（参考 RAGent）
-// ═══════════════════════════════
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ClarificationChips(question: String, options: List<String>, onSelected: (String) -> Unit) {
@@ -737,14 +803,14 @@ private fun ClarificationChips(question: String, options: List<String>, onSelect
                         .clip(RoundedCornerShape(20.dp))
                         .clickable { onSelected(option) },
                     shape = RoundedCornerShape(20.dp),
-                    color = Surface,
-                    border = BorderStroke(1.dp, Primary.copy(alpha = 0.4f)),
+                    color = Color(0xFFE8F5E9),
+                    border = BorderStroke(1.dp, Color(0xFF4CAF50)),
                 ) {
                     Text(
                         option,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
                         style = TextStyle(fontSize = 14.sp),
-                        color = Primary,
+                        color = Color(0xFF2E7D32),
                         fontWeight = FontWeight.Medium,
                     )
                 }
@@ -753,15 +819,8 @@ private fun ClarificationChips(question: String, options: List<String>, onSelect
     }
 }
 
-// ═══════════════════════════════
 // Product Carousel — 横滑商品卡片（HorizontalPager）
-// ═══════════════════════════════
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
-@Composable
-
-// ═══════════════════════════════
 // 全屏图片查看 Dialog
-// ═══════════════════════════════
 @Composable
 private fun FullScreenImageDialog(imageUri: String, onDismiss: () -> Unit) {
     Dialog(

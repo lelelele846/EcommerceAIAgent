@@ -1,3 +1,16 @@
+"""
+豆包大模型服务 — 封装与 Doubao API 的交互逻辑。
+
+提供的能力：
+    1. chat_with_history / stream_with_history：携带完整对话历史的多轮对话
+    2. generate_response / stream_response：单轮问答（向后兼容）
+    3. 支持快速模型降级：通过 use_fast_model 参数切换轻量模型降低延迟
+
+容错设计：
+    - 自动重试机制（默认3次，指数退避）
+    - 请求超时控制（同步120秒，流式180秒）
+    - 优雅降级：错误信息通过 yield 传递给调用方
+"""
 import os
 import asyncio
 import aiohttp
@@ -15,9 +28,7 @@ class DoubaoService:
         self.max_retries = 3
         self.retry_delay = 5
 
-    # ══════════════════════════════════════════════════════════════
     # 带对话历史的方法（核心：让 LLM 看到上下文）
-    # ══════════════════════════════════════════════════════════════
 
     async def chat_with_history(
         self,
@@ -144,9 +155,7 @@ class DoubaoService:
                 else:
                     yield f"Error: {str(e)}"
 
-    # ══════════════════════════════════════════════════════════════
     # 原有单条 prompt 方法（向后兼容）
-    # ══════════════════════════════════════════════════════════════
 
     async def generate_response(self, prompt: str) -> str:
         url = f"{self.base_url}chat/completions"

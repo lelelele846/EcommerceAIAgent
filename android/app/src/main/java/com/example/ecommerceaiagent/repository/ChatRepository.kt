@@ -3,16 +3,11 @@ package com.example.ecommerceaiagent.repository
 import android.content.Context
 import android.util.Log
 import com.example.ecommerceaiagent.model.*
-import com.example.ecommerceaiagent.utils.ImageCompressor
+import com.example.ecommerceaiagent.model.CartItem
 import com.google.gson.Gson
-import com.google.gson.JsonParser
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.mapNotNull
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -31,7 +26,6 @@ import java.util.concurrent.TimeUnit
  */
 class ChatRepository {
 
-    private val sseClient = SseClient()
     private val gson = Gson()
 
     // HTTP 客户端 — SSE 流式请求也需要长超时（HyDE + reranker 首字节延迟较高）
@@ -43,146 +37,51 @@ class ChatRepository {
 
     private var sessionId: String? = null
 
-    // ===== SSE 事件类型枚举 =====
-
-    private enum class SseEventType(val value: String) {
-        THINKING("thinking"),
-        TOOL_PROGRESS("tool_progress"),
-        TEXT_DELTA("text_delta"),
-        PRODUCT_CARD("product_card"),
-        PRODUCT_CARD_LIST("product_card_list"),
-        COMPARISON_TABLE("comparison_table"),
-        CLARIFICATION("clarification"),
-        IMAGE_SEARCHING("image_searching"),
-        ERROR("error"),
-        DONE("done"),
-        UNKNOWN("unknown");
-
-        companion object {
-            fun from(value: String): SseEventType =
-                entries.find { it.value == value } ?: UNKNOWN
-        }
+    fun setSessionId(id: String) { sessionId = id }
+    fun getSessionId(): String {
+        if (sessionId == null) sessionId = UUID.randomUUID().toString()
+        return sessionId!!
     }
+
+
 
     // ===== 回调接口（保持向后兼容）=====
 
     interface ChatCallback {
         fun onMessageReceived(content: String)
         fun onProductReceived(product: Product)
-        fun onRecognizedText(text: String) {}
         fun onComparisonReceived(products: List<Product>, aiAnalysis: String) {}
         fun onClarification(question: String, options: List<String>) {}
+        fun onCartUpdate(items: List<CartItem>, total: Double, count: Int, action: String) {}
+        fun onOrderConfirmed(orderId: String, items: List<CartItem>, total: Double) {}
         fun onComplete()
         fun onError(error: String)
     }
 
-    // ===== SSE Flow API（新架构，推荐使用）=====
 
     /**
      * 发起对话，返回 Flow<ChatMessage>。
      * text_delta 事件由 ViewModel 负责累积成流式文字气泡。
      */
-    fun chatFlow(text: String, imageBase64: String? = null): Flow<ChatMessage> {
-        if (sessionId == null) sessionId = UUID.randomUUID().toString()
-
-        val baseUrl = "http://192.168.1.108:8080"
-        val url = "$baseUrl/api/chat/stream"
-        val escapedMessage = text.replace("\\", "\\\\").replace("\"", "\\\"")
-        val imagePart = if (imageBase64 != null) """, "image_base64": "$imageBase64"""" else ""
-        val json = """{"message": "$escapedMessage", "session_id": "$sessionId"$imagePart}"""
-
-        return sseClient.stream(
-            url = url,
-            jsonBody = json,
-            headers = mapOf("X-Session-ID" to sessionId!!),
-        ).mapNotNull { (type, data) ->
-            parseSseEvent(SseEventType.from(type), data)
-        }
-    }
 
     // ===== 解析 SSE 事件 → ChatMessage =====
 
-    private fun parseSseEvent(type: SseEventType, data: String): ChatMessage? {
-        return try {
-            when (type) {
-                SseEventType.THINKING -> {
-                    val json = JSONObject(data)
-                    ChatMessage.AiStatus(json.optString("message", "正在思考..."))
-                }
-                SseEventType.TOOL_PROGRESS -> {
-                    val json = JSONObject(data)
-                    ChatMessage.AiStatus(json.optString("message", "检索中..."))
-                }
-                SseEventType.IMAGE_SEARCHING -> {
-                    val json = JSONObject(data)
-                    ChatMessage.AiStatus(json.optString("message", "正在分析图片..."))
-                }
-                SseEventType.TEXT_DELTA -> {
-                    val json = JSONObject(data)
-                    val text = json.optString("text", json.optString("content", ""))
-                    if (text.isEmpty()) null else ChatMessage.AiText(text = text)
-                }
-                SseEventType.PRODUCT_CARD -> {
-                    val json = JSONObject(data)
-                    val productJson = json.optJSONObject("product") ?: json
-                    ChatMessage.AiProductCard(product = parseProductFromJson(productJson))
-                }
-                SseEventType.COMPARISON_TABLE -> {
-                    val json = JSONObject(data)
-                    val arr = json.optJSONArray("products") ?: JSONArray()
-                    val products = (0 until arr.length()).map { i ->
-                        parseProductFromJson(arr.getJSONObject(i))
-                    }
-                    val dimsArr = json.optJSONArray("dimensions") ?: JSONArray()
-                    val dims = (0 until dimsArr.length()).map { i ->
-                        val dim = dimsArr.getJSONObject(i)
-                        val vals = dim.optJSONArray("values") ?: JSONArray()
-                        ComparisonDimension(
-                            name = dim.optString("name", ""),
-                            values = (0 until vals.length()).map { j -> vals.optString(j, "") }
-                        )
-                    }
-                    ChatMessage.AiComparison(products, dims, json.optString("recommendation", ""))
-                }
-                SseEventType.CLARIFICATION -> {
-                    val json = JSONObject(data)
-                    val optsArr = json.optJSONArray("options") ?: JSONArray()
-                    ChatMessage.AiClarification(
-                        question = json.optString("question", ""),
-                        options = (0 until optsArr.length()).map { i -> optsArr.optString(i, "") }
-                    )
-                }
-                SseEventType.DONE -> {
-                    val json = JSONObject(data)
-                    ChatMessage.InternalDone(
-                        agentState = json.optString("agent_state", "")
-                    )
-                }
-                SseEventType.ERROR -> {
-                    val json = JSONObject(data)
-                    ChatMessage.AiError(
-                        code = json.optString("code", "ERROR"),
-                        message = json.optString("message", "未知错误"),
-                    )
-                }
-                SseEventType.UNKNOWN -> {
-                    // 兼容无 type 字段但包含完整商品字段的 SSE 事件
-                    val json = JSONObject(data)
-                    if (json.has("id") && json.has("name") && json.has("price")) {
-                        ChatMessage.AiProductCard(product = parseProductFromJson(json))
-                    } else {
-                        val content = json.optString("content", "")
-                        if (content.isNotEmpty()) ChatMessage.AiText(text = content) else null
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("ChatRepository", "解析 SSE 事件失败 type=${type.value}: $data", e)
-            null
-        }
-    }
 
     private fun parseProductFromJson(json: JSONObject): Product {
+        val reviewsArr = json.optJSONArray("reviews")
+        val reviews = if (reviewsArr != null) {
+            (0 until reviewsArr.length()).map { i ->
+                val r = reviewsArr.getJSONObject(i)
+                ReviewItem(nickname = r.optString("nickname"), rating = r.optInt("rating"), content = r.optString("content"))
+            }
+        } else emptyList()
+        val faqArr = json.optJSONArray("faq")
+        val faq = if (faqArr != null) {
+            (0 until faqArr.length()).map { i ->
+                val f = faqArr.getJSONObject(i)
+                FaqItem(question = f.optString("question"), answer = f.optString("answer"))
+            }
+        } else emptyList()
         return Product(
             id = json.optString("id", ""),
             name = json.optString("name", json.optString("title", "")),
@@ -194,6 +93,8 @@ class ChatRepository {
             review_count = json.optInt("review_count", 0),
             description = json.optString("description", json.optString("marketing_description", "")),
             product_url = json.optString("product_url", ""),
+            reviews = reviews,
+            faq = faq,
         )
     }
 
@@ -290,6 +191,26 @@ class ChatRepository {
                                             }
                                             callback.onClarification(question, opts)
                                         }
+                                        "cart_update" -> {
+                                            val itemsArr = jsonObject.optJSONArray("items") ?: JSONArray()
+                                            val items = (0 until itemsArr.length()).map { i ->
+                                                val obj = itemsArr.getJSONObject(i)
+                                                CartItem(product_id = obj.optString("product_id"), name = obj.optString("name"),
+                                                    brand = obj.optString("brand"), price = obj.optDouble("price"),
+                                                    quantity = obj.optInt("quantity", 1), image_url = obj.optString("image_url"))
+                                            }
+                                            callback.onCartUpdate(items, jsonObject.optDouble("total"), jsonObject.optInt("count"), jsonObject.optString("action"))
+                                        }
+                                        "order_confirmed" -> {
+                                            val itemsArr = jsonObject.optJSONArray("items") ?: JSONArray()
+                                            val items = (0 until itemsArr.length()).map { i ->
+                                                val obj = itemsArr.getJSONObject(i)
+                                                CartItem(product_id = obj.optString("product_id"), name = obj.optString("name"),
+                                                    brand = obj.optString("brand"), price = obj.optDouble("price"),
+                                                    quantity = obj.optInt("quantity", 1), image_url = obj.optString("image_url"))
+                                            }
+                                            callback.onOrderConfirmed(jsonObject.optString("order_id"), items, jsonObject.optDouble("total"))
+                                        }
                                         "end" -> { /* onComplete 在循环结束后统一调用，避免重复 */ }
                                         "error" -> {
                                             val errorMsg = jsonObject.optString("message", "未知错误")
@@ -323,57 +244,4 @@ class ChatRepository {
             }
         })
     }
-
-    /** 发送语音消息（保持不变） */
-    fun sendVoiceMessage(context: Context, audioFile: File, callback: ChatCallback) {
-        if (sessionId == null) sessionId = UUID.randomUUID().toString()
-
-        val baseUrl = "http://192.168.1.108:8080"
-        val url = "$baseUrl/api/speech/recognize"
-
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("file", audioFile.name, audioFile.asRequestBody("audio/mpeg".toMediaType()))
-            .build()
-
-        val request = Request.Builder()
-            .url(url)
-            .header("X-Session-ID", sessionId!!)
-            .post(requestBody)
-            .build()
-
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                callback.onError("语音识别失败：${e.message}")
-            }
-            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                response.use {
-                    if (!response.isSuccessful) {
-                        callback.onError("服务器响应失败：${response.code}")
-                        return
-                    }
-                    try {
-                        val responseBody = response.body?.string() ?: ""
-                        val jsonObject = JSONObject(responseBody)
-                        val recognizedText = jsonObject.optString("recognized_text", "")
-                        val replyText = jsonObject.optString("reply_text", "")
-                        val productsArray = jsonObject.optJSONArray("products")
-                        if (recognizedText.isNotEmpty()) callback.onRecognizedText(recognizedText)
-                        if (replyText.isNotEmpty()) callback.onMessageReceived(replyText)
-                        if (productsArray != null) {
-                            for (i in 0 until productsArray.length()) {
-                                callback.onProductReceived(parseProductFromJson(productsArray.getJSONObject(i)))
-                            }
-                        }
-                        callback.onComplete()
-                    } catch (e: Exception) {
-                        Log.e("ChatRepository", "解析语音响应失败", e)
-                        callback.onError("解析响应失败：${e.message}")
-                    }
-                }
-            }
-        })
-    }
-
-    fun clearSession() { sessionId = null }
 }

@@ -112,6 +112,11 @@ async def startup_event():
     app.include_router(session_router)
     app.include_router(feedback_router)
     app.include_router(multimodal_router)
+
+    # 购物车 REST API
+    from routers.cart import set_session_manager as set_cart_sm, router as cart_router
+    set_cart_sm(session_manager)
+    app.include_router(cart_router)
     
     print("所有服务初始化完成，路由已注册")
 

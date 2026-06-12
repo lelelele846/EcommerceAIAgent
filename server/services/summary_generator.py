@@ -1,8 +1,18 @@
-"""会话摘要生成服务"""
+"""
+对话摘要生成器 — 将长对话压缩为简短摘要，降低后续 Token 消耗。
+
+工作原理：
+    1. 提取最近 5 轮对话的关键内容
+    2. 提取用户偏好中的核心信息（类目、口味、肤质、预算）
+    3. 调用大模型生成一句话总结
+
+降级策略：
+    当 AI 服务不可用时，使用规则引擎生成备选摘要
+"""
 from typing import List, Dict
 
 class SummaryGenerator:
-    """会话摘要生成器"""
+    """对话摘要生成器 — 将长对话压缩为简短摘要"""
     
     def __init__(self, ai_service):
         self.ai_service = ai_service

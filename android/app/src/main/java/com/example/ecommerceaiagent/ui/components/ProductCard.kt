@@ -22,7 +22,11 @@ import com.example.ecommerceaiagent.model.Product
 import com.example.ecommerceaiagent.theme.*
 
 @Composable
-fun ProductCardView(product: Product, onClick: (() -> Unit)? = null) {
+fun ProductCardView(
+    product: Product,
+    onClick: (() -> Unit)? = null,
+    onAddToCart: ((Product) -> Unit)? = null,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable { onClick?.invoke() },
         color = Background,
@@ -68,9 +72,25 @@ fun ProductCardView(product: Product, onClick: (() -> Unit)? = null) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(if (product.price > 0) "¥${String.format("%.2f", product.price)}" else "价格待定",
                     fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
-                Surface(color = PrimaryContainer, shape = RoundedCornerShape(8.dp)) {
-                    Text("查看详情", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Primary,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val orange = Color(0xFFFF7043)
+                    val orangeLight = Color(0xFFFFF0E6)
+                    if (onAddToCart != null) {
+                        Surface(
+                            color = orange,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.clickable { onAddToCart(product) }
+                        ) {
+                            Text("加购", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
+                        }
+                    }
+                    Surface(color = orangeLight, shape = RoundedCornerShape(8.dp)) {
+                        Text("查看详情", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            color = orange,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
+                    }
                 }
             }
         }

@@ -1,8 +1,19 @@
 """
-ProductRepo — 商品数据访问抽象层。
+商品仓储层 — 统一管理商品数据的加载、索引和查询。
 
-所有商品查询必须通过这里，不直接访问 retriever.products。
-好处：统一索引、缓存、替换数据源时只改这里。
+设计原则：
+    所有商品查询必须通过 ProductRepo，不直接访问 retriever.products。
+    这样设计的好处：
+        - 统一索引：按 ID、类目、品牌多维度索引
+        - 缓存友好：内存加载，避免重复解析
+        - 解耦数据源：更换数据源时只需修改 load() 方法
+
+索引结构：
+    - _products：商品列表
+    - _by_id：ID → Product 映射
+    - _by_category：类目 → 商品列表
+    - _by_brand：品牌 → 商品列表
+    - _all_brands/_all_categories：全局品牌/类目集合
 """
 import glob
 import json
@@ -24,7 +35,6 @@ class ProductRepo:
         self._all_sub_categories: set[str] = set()
         self._loaded = False
 
-    # ── 加载 ──────────────────────────────────────────
 
     def load(self, dataset_path: str = "./data/ecommerce_agent_dataset"):
         """从数据集目录加载所有商品 JSON"""
@@ -78,7 +88,6 @@ class ProductRepo:
         self._by_category.setdefault(product.category, []).append(product)
         self._by_brand.setdefault(product.brand, []).append(product)
 
-    # ── 查询 ──────────────────────────────────────────
 
     def all(self) -> list[Product]:
         return self._products
@@ -121,7 +130,6 @@ class ProductRepo:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [p for _, p in scored[:limit]]
 
-    # ── 统计 ──────────────────────────────────────────
 
     @property
     def count(self) -> int:

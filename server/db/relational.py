@@ -1,10 +1,16 @@
 """
-关系型数据层 — SQLite 实现，持久化会话和对话历史。
+数据持久化层 — SQLite 数据库封装，存储会话和消息历史。
 
-参考 RAGent 的设计：
-  - sessions 表：agent_state, last_shown_products, search_state, scene_context
-  - messages 表：role, content, blocks (富内容块，如商品卡)
-  - 所有业务方法异步，接口对上层屏蔽 SQL 细节
+数据库设计：
+    - sessions 表：会话状态（状态机状态、最近展示商品、搜索状态、场景上下文、订单状态、偏好）
+    - messages 表：消息记录（角色、内容、富内容块数组）
+    - 线程本地连接：每个线程独立连接，避免并发冲突
+
+特性：
+    - WAL 模式：支持并发读写，提升性能
+    - 异步接口：所有业务方法通过 executor 在线程池执行
+    - 增量迁移：启动时自动补齐新增字段
+    - JSON 序列化：复杂字段自动序列化/反序列化
 """
 import json
 import os
@@ -14,7 +20,6 @@ from datetime import datetime
 from typing import Optional
 
 
-# ───────────────────────── 数据库路径 ─────────────────────────
 
 DB_DIR = os.path.join(os.path.dirname(__file__), "..")
 DB_PATH = os.path.join(DB_DIR, "app.db")
@@ -24,7 +29,6 @@ def _now() -> str:
     return datetime.utcnow().isoformat()
 
 
-# ───────────────────────── 建表 SQL ─────────────────────────
 
 _CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -51,7 +55,6 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
 """
 
-# ───────────────────────── 线程安全的 SQLite 连接 ─────────────
 
 _conn_local = threading.local()
 
@@ -131,7 +134,6 @@ def _fetchall(sql: str, params=()) -> list[dict]:
     return [dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
-# ───────────────────────── 会话 ─────────────────────────
 
 async def create_session(session_id: str) -> dict:
     """创建新会话"""
@@ -211,7 +213,6 @@ async def update_session_state(
     await loop.run_in_executor(None, _update)
 
 
-# ───────────────────────── 对话历史 ─────────────────────────
 
 async def add_message(
     session_id: str,

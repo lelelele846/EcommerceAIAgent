@@ -33,6 +33,8 @@ class EventType(str, Enum):
     END = "end"
     ERROR = "error"
     DONE = "done"
+    CART_UPDATE = "cart_update"
+    ORDER_CONFIRMED = "order_confirmed"
 
 
 class SSEEvent(BaseModel):
@@ -100,6 +102,26 @@ def clarification(question: str, options: list[str]) -> SSEEvent:
         type=EventType.CLARIFICATION,
         data={"question": question, "options": options},
     )
+
+
+def cart_update(items: list[dict], total: float, action: str = "add") -> SSEEvent:
+    """购物车状态变更事件。"""
+    return SSEEvent(type=EventType.CART_UPDATE, data={
+        "items": items,
+        "total": round(total, 2),
+        "action": action,
+        "count": len(items),
+    })
+
+
+def order_confirmed(order_id: str, items: list[dict], total: float) -> SSEEvent:
+    """下单成功事件，触发客户端展示订单详情页"""
+    return SSEEvent(type=EventType.ORDER_CONFIRMED, data={
+        "order_id": order_id,
+        "items": items,
+        "total": round(total, 2),
+        "count": len(items),
+    })
 
 
 def end(complete: bool = True) -> SSEEvent:

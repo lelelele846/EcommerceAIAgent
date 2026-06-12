@@ -1,53 +1,61 @@
 """
-导购会话状态机 — 定义导购阶段和转移规则。
+会话流程控制器 — 跟踪对话阶段流转，按规则限制操作防止状态发散。
 
-实际 Agent 清单：
-  - search_agent  — 单品搜索推荐（含 slot-filling）
-  - compare_agent — 多商品对比
-  - scene_agent   — 场景化组合规划
+内置 Agent：search / compare / scene / cart / order
 
-状态和转移只覆盖已实现的三个 agent（搜索推荐、商品对比、场景规划）。
+设计原则：
+    - 每个状态只允许合理的下一步操作（search/cart 几乎总可用）
+    - compare/scene/order 按上下文限制，避免状态跳变
+    - BROWSING 作为枢纽，所有深度操作最终可回到 BROWSING
 """
 from enum import Enum
 
 
 class AgentState(str, Enum):
-    BROWSING = "browsing"           # 浏览/搜索商品（默认状态）
-    COMPARING = "comparing"          # 对比多个商品
-    SCENE_PLANNING = "scene_planning"  # 场景化方案规划
+    BROWSING = "browsing"
+    COMPARING = "comparing"
+    SCENE_PLANNING = "scene_planning"
+    CART = "cart"
+    CHECKOUT = "checkout"
 
 
-# 每个状态允许路由的子 Agent
+AGENT_NAMES = ["search", "compare", "scene", "cart", "order"]
+
+
+# 每个状态下允许执行的操作（未列出的将被拦截）
 STATE_ALLOWED_AGENTS: dict[AgentState, list[str]] = {
-    AgentState.BROWSING:        ["search", "compare", "scene"],
-    AgentState.COMPARING:       ["search", "compare", "scene"],
-    AgentState.SCENE_PLANNING:  ["search", "scene"],
+    AgentState.BROWSING:        ["search", "compare", "scene", "cart", "order"],
+    AgentState.COMPARING:       ["search", "compare", "cart"],
+    AgentState.SCENE_PLANNING:  ["search", "scene", "cart"],
+    AgentState.CART:            ["search", "compare", "cart", "order"],
+    AgentState.CHECKOUT:        ["search", "cart", "order"],
 }
 
-# 意图 → 下一个状态的转移规则
-# key: (当前状态, 意图)  value: 下一个状态
+
+# 操作触发后的下一状态（未列出的保持当前状态不变）
 TRANSITIONS: dict[tuple[AgentState, str], AgentState] = {
-    # 从浏览出发
     (AgentState.BROWSING,        "compare"):     AgentState.COMPARING,
     (AgentState.BROWSING,        "scene"):       AgentState.SCENE_PLANNING,
-    # 从对比出发
+    (AgentState.BROWSING,        "cart"):        AgentState.CART,
+    (AgentState.BROWSING,        "order"):       AgentState.CHECKOUT,
     (AgentState.COMPARING,       "search"):      AgentState.BROWSING,
-    (AgentState.COMPARING,       "scene"):       AgentState.SCENE_PLANNING,
-    # 从场景规划出发
+    (AgentState.COMPARING,       "cart"):        AgentState.CART,
     (AgentState.SCENE_PLANNING,  "search"):      AgentState.BROWSING,
-    (AgentState.SCENE_PLANNING,  "compare"):     AgentState.COMPARING,
+    (AgentState.SCENE_PLANNING,  "cart"):        AgentState.CART,
+    (AgentState.CART,            "search"):      AgentState.BROWSING,
+    (AgentState.CART,            "compare"):     AgentState.COMPARING,
+    (AgentState.CART,            "order"):       AgentState.CHECKOUT,
+    (AgentState.CHECKOUT,        "search"):      AgentState.BROWSING,
+    (AgentState.CHECKOUT,        "cart"):        AgentState.CART,
 }
 
 
 def get_next_state(current: AgentState, intent: str) -> AgentState:
-    """根据当前状态和意图返回下一个状态，无匹配则状态不变"""
+    """返回操作后的下一状态，未定义则保持当前状态。"""
     return TRANSITIONS.get((current, intent), current)
 
 
-def get_allowed_agents(state: AgentState) -> list[str]:
-    """返回当前状态允许调用的子 Agent 列表"""
-    return STATE_ALLOWED_AGENTS.get(state, ["search"])
-
-
 def is_agent_allowed(state: AgentState, agent_name: str) -> bool:
-    return agent_name in get_allowed_agents(state)
+    """检查当前状态是否允许执行该操作。"""
+    allowed = STATE_ALLOWED_AGENTS.get(state, AGENT_NAMES)
+    return agent_name in allowed

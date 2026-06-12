@@ -1,12 +1,12 @@
 """
-Search Agent — 商品搜索与推荐（渐进式 slot-filling 多轮收敛）。
+商品发现引擎 — 处理单品查找请求，通过渐进式维度确认实现精准推荐。
 
-核心流程：
-  1. 累积结构化 SearchState（会话持久化）
-  2. 每轮把用户输入合并进 SearchState（标量覆盖 / 列表累积）
-  3. 全量重检索（不在旧结果里捞）
-  4. 候选 > 3 且需求欠定时，按品类关键维度主动反问
-  5. 用户给品牌 / 喊停 → 直接出卡
+执行链路：
+  1. 收集结构化查询条件（会话级持久化）
+  2. 逐轮更新查询参数（单值覆盖 / 多值追加）
+  3. 完整重新检索（非增量筛选）
+  4. 候选超过3个且需求不清晰时，按品类特征维度主动询问
+  5. 用户指定品牌或要求直接展示时，立即呈现结果
 """
 import json
 from typing import AsyncIterator, Optional
@@ -66,7 +66,6 @@ def _slot_covered_by_session_prefs(slot_name: str, session_prefs: dict) -> bool:
     return bool(session_prefs.get(key))
 
 
-# ── 纯类目名映射（用户只说"数码产品"/"美妆"等类目名时跳过 HyDE，直接按类目检索）──
 CATEGORY_NAME_ALIASES = frozenset({
     "数码", "数码产品", "数码电子", "电子产品",
     "美妆", "美妆护肤", "护肤品", "化妆品",
@@ -91,7 +90,7 @@ _CATEGORY_ALIAS_TO_CATEGORY: dict[str, str] = {
 
 
 class SearchAgent:
-    """单品搜索 Agent：检索 + slot-filling 反问收敛 + 出卡"""
+    """单品发现引擎：查询 + 渐进式维度确认 + 结果展示"""
 
     def __init__(self, retriever, doubao_service, session_manager):
         self.retriever = retriever
@@ -124,8 +123,6 @@ class SearchAgent:
         🆕 last_shown: 上一轮展示的商品，注入 prompt 帮助 LLM 理解上下文。
         """
 
-        # ── 纯类目名检测：跳过 HyDE/语义搜索，直接按类目出卡 ──
-        # ── HyDE：短查询生成假设文档提升召回 ──────────
         effective_q = search_query or query
         hyde_text = None
         direct_category = None
@@ -140,7 +137,6 @@ class SearchAgent:
             if hyde_text:
                 print(f"[search_agent] HyDE 已激活: {hyde_text[:60]}...")
 
-        # ── Query 分解：复杂查询拆成子查询 ──────────────
         query_decomposer.set_service(self.doubao)
         if query_decomposer.should_decompose(effective_q):
             decomposed = await query_decomposer.decompose(effective_q)
@@ -155,7 +151,6 @@ class SearchAgent:
         else:
             sub_queries = [f"{effective_q} {hyde_text}" if hyde_text else effective_q]
 
-        # ── 检索（支持子查询合并） ────────────────────
         yield tool_progress("hybrid_search", "正在为您检索商品...").to_sse_compact()
 
         try:
@@ -204,18 +199,29 @@ class SearchAgent:
                 )
                 if retry_products:
                     products = retry_products
-                else:
-                    yield ev_content(
-                        "抱歉，暂时没有找到符合您需求的商品。可以换个关键词试试，或者告诉我您想要什么类型的商品～"
-                    ).to_sse_compact()
-                    return
-            else:
+
+            # 🔧 终极兜底：向量+BM25 都没找到 → 直接用标题子串匹配
+            # MiniLM 对短中文查询（"遮阳帽""防晒霜"）的 embedding 质量差，绕过向量直接扫标题
+            if not products:
+                from utils.product_repo import product_repo
+                name_matches = product_repo.search_by_name(effective_q, limit=8)
+                if name_matches:
+                    # 应用价格过滤
+                    if price_range:
+                        name_matches = [
+                            p for p in name_matches
+                            if price_range[0] <= p.base_price <= price_range[1]
+                        ]
+                    if name_matches:
+                        print(f"[search_agent] fallback name search: '{effective_q}' → {len(name_matches)} results")
+                        products = name_matches
+
+            if not products:
                 yield ev_content(
                     "抱歉，暂时没有找到符合您需求的商品。可以换个关键词试试，或者告诉我您想要什么类型的商品～"
                 ).to_sse_compact()
                 return
 
-        # ── Self-RAG 相关性校验 ───────────────────────
         if len(products) > 3:
             relevance_checker.set_service(self.doubao)
             relevant, _ = await relevance_checker.check(query, products, min_keep=3)
@@ -238,7 +244,6 @@ class SearchAgent:
                             products.append(p)
                     products = products[:8]
 
-        # ── LLM Judge 精选 ──────────────────────────
         if len(products) > 5:
             yield tool_progress("llm_judge", "正在筛选最匹配的商品...").to_sse_compact()
             selected_ids = await self._judge(query, products, top_k=5)
@@ -249,7 +254,6 @@ class SearchAgent:
                     key=lambda p: id_order[p.id]
                 )
 
-        # ── Slot-filling 决策（先出卡，再追问）───────
         has_brand = preferred_brands or extracted_prefs.get('preferred_brands')
         has_asked_before = len(intent_chain) >= 2 and any(
             i.get('type') == 'clarifying' for i in intent_chain[-3:]
@@ -257,7 +261,6 @@ class SearchAgent:
         # 检查是否已有明确的品类属性（如肤质、风格等），避免重复追问
         session_prefs_cover_slots = self._session_prefs_cover_key_slots(session_prefs, original_category or category or "")
 
-        # ── 先出卡（始终展示商品，不阻塞用户）─────────
         # 只有 0 个商品时才不出卡
         slot_to_ask = None
         if len(products) > 3 and not has_brand and not has_asked_before and not user_wants_show_now and not session_prefs_cover_slots:
@@ -282,14 +285,12 @@ class SearchAgent:
 
         # 商品展示后再追问（最多一次）
         if slot_to_ask:
-            options = slot_to_ask["options"] + (["直接帮我搜"] if "直接帮我搜" not in slot_to_ask["options"] else [])
+            options = slot_to_ask["options"]
             yield ev_clarification(question=slot_to_ask["question"], options=options).to_sse_compact()
             self.sessions.add_intent(session_id, "clarifying",
                                      {"category": original_category, "slot": slot_to_ask["name"]})
 
-    # ───────────────────────────────────────────────
     # 私有方法
-    # ───────────────────────────────────────────────
 
     def _session_prefs_cover_key_slots(self, session_prefs: dict, category: str) -> bool:
         """检查 session 偏好是否已覆盖该品类的关键 slot，避免重复追问。
@@ -559,7 +560,6 @@ class SearchAgent:
                     yield product_card_compact(p.id, pd_).to_sse_compact()
                     recommended_set.add(p.id)
 
-        # ── 关联推荐（知识图谱互补品） ─────────────────
         if recommended_set:
             try:
                 related = _product_graph.get_related_products(

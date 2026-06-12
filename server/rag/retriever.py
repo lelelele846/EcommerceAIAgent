@@ -1,19 +1,21 @@
 """
-混合检索器 — Chunk 级向量召回 + BM25 召回 → RRF 融合 → 商品聚合。
+混合检索器 — 将向量检索、BM25 检索和属性匹配进行融合，最终返回商品列表。
 
-RRF（Reciprocal Rank Fusion）：
-    score(d) = Σ 1 / (k + rank(d))，k=60
-    向量分数（0-1 余弦）和 BM25 分数（无上界）量纲不同，
-    RRF 只用排名，完全绕开量纲问题。
+核心技术：
+    RRF（Reciprocal Rank Fusion）融合算法：
+        score(d) = Σ 1 / (k + rank(d))，其中 k=60
+        解决向量分数（0-1 余弦）和 BM25 分数（无上界）量纲差异问题，
+        通过使用排名信息而非原始分数，完全绕开量纲不一致的难题。
 
-Query 解析：
-    "200元以内的洗面奶" → semantic_query="洗面奶" + where={"base_price": {"$lte": 200}}
-    价格数字在向量空间是噪声，由结构化过滤处理才可靠。
+查询解析策略：
+    将自然语言查询拆分为语义部分和结构化约束：
+    例如 "200元以内的洗面奶" → semantic_query="洗面奶" + where={"base_price": {"$lte": 200}}
+    价格等结构化信息在向量空间中属于噪声，通过元数据过滤处理更可靠。
 
-Chunk 级检索：
-    每个商品拆成 3-6 个 chunk（标题+属性 / 描述 / FAQ / 评价），
-    分别 embedding → 检索时召回 chunk → 按 product_id 聚合取 max score。
-    避免长文本信息在单一 embedding 中被稀释。
+细粒度检索设计：
+    每个商品拆分为多个 chunk（标题+属性、描述、FAQ、评价），
+    分别进行向量化，检索时召回相关 chunk 后按商品 ID 聚合，取最高分。
+    这种方式避免了长文本信息在单一 embedding 中被稀释的问题。
 """
 import hashlib
 import json
@@ -36,9 +38,7 @@ from rag.keyword_retriever import AttributeMatcher
 from rag.product_graph import product_graph as _product_graph
 
 
-# ══════════════════════════════════════════════════════════════
 # 常量
-# ══════════════════════════════════════════════════════════════
 
 RRF_K = 60
 CHUNK_TYPE_TITLE = "title_block"
@@ -50,9 +50,7 @@ CHUNK_TYPE_REVIEW = "review_block"
 COLLECTION_NAME = "product_chunks"
 
 
-# ══════════════════════════════════════════════════════════════
 # Query 解析 — 从自然语言中提取结构化约束
-# ══════════════════════════════════════════════════════════════
 
 @dataclass
 class ParsedQuery:
@@ -96,9 +94,7 @@ def parse_query(query: str) -> ParsedQuery:
     return ParsedQuery(semantic_query=semantic or query, where_filter=where_filter)
 
 
-# ══════════════════════════════════════════════════════════════
 # RRF 融合
-# ══════════════════════════════════════════════════════════════
 
 def _rrf_fuse(*rankings: list[dict[str, Any]], k: int = RRF_K) -> list[tuple[str, float]]:
     """多路检索结果 RRF 融合，返回 [(chunk_id, rrf_score), ...] 降序"""
@@ -110,9 +106,7 @@ def _rrf_fuse(*rankings: list[dict[str, Any]], k: int = RRF_K) -> list[tuple[str
     return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
 
-# ══════════════════════════════════════════════════════════════
 # 同义词扩展词典
-# ══════════════════════════════════════════════════════════════
 
 _SYNONYM_DICT: dict[str, list[str]] = {
     "洗面奶": ["洗面奶", "洁面乳", "洁面", "洗颜", "洁面泡沫", "洁面膏"],
@@ -166,9 +160,7 @@ def _expand_query(query: str) -> str:
     return query
 
 
-# ══════════════════════════════════════════════════════════════
 # BM25 where filter — 与 ChromaDB where 语法一致
-# ══════════════════════════════════════════════════════════════
 
 def _matches_where(metadata: dict, where: Optional[dict]) -> bool:
     """BM25 侧的 metadata 过滤。支持 $and/$or/$lt/$lte/$gt/$gte/$ne。"""
@@ -199,9 +191,7 @@ def _matches_where(metadata: dict, where: Optional[dict]) -> bool:
     return True
 
 
-# ══════════════════════════════════════════════════════════════
 # BM25 检索器 — jieba 分词 + BM25Okapi
-# ══════════════════════════════════════════════════════════════
 
 def _tokenize(text: str) -> list[str]:
     """中文分词 — jieba 词级分词，比字符 bigram 更准"""
@@ -275,9 +265,7 @@ class BM25Retriever:
         return results
 
 
-# ══════════════════════════════════════════════════════════════
 # ProductRetriever — 混合检索主入口
-# ══════════════════════════════════════════════════════════════
 
 # 查询停用词 — 去掉填充词让语义搜索更精准
 _QUERY_STOP_WORDS = {
@@ -324,7 +312,6 @@ class ProductRetriever:
         self.products = product_repo.all()
         print(f"Loaded {len(self.products)} products from ProductRepo")
 
-    # ── Chunk 构建 ────────────────────────────────────
 
     @staticmethod
     def _build_chunks(product: Product) -> list[dict]:
@@ -397,7 +384,6 @@ class ProductRetriever:
 
         return chunks
 
-    # ── Embedding 构建 ─────────────────────────────────
 
     def _ensure_model(self):
         """确保 embedding 模型已加载（离线优先，避免 HF 网络超时）"""
@@ -464,7 +450,6 @@ class ProductRetriever:
         )
         print(f"[retriever] BM25 索引构建完成: {count} chunks")
 
-    # ── 查询清洗 ─────────────────────────────────────
 
     def _clean_query(self, query: str) -> str:
         """去掉查询中的填充词，保留核心商品描述"""
@@ -485,7 +470,6 @@ class ProductRetriever:
         }, sort_keys=True, ensure_ascii=False)
         return hashlib.md5(raw.encode()).hexdigest()
 
-    # ── 主检索入口 ────────────────────────────────────
 
     def search(
         self,
@@ -501,7 +485,6 @@ class ProductRetriever:
         混合检索主入口：向量 + BM25 + 属性匹配 → RRF → Cross-Encoder → 商品聚合。
         preferences: 用户偏好字典，用于多维 boost（价格/风格/肤质/口味等）
         """
-        # ── 缓存检查（数据集静态，同参数查询直接返回） ──
         cache_key = self._make_cache_key(
             query, top_k, category_filter, price_range,
             preferred_brands, disliked_brands, preferences,
@@ -516,7 +499,6 @@ class ProductRetriever:
                 else:
                     del self._result_cache[cache_key]
 
-        # ── Query 解析 ────────────────────────────────
         parsed = parse_query(query)
         clean_query = self._clean_query(parsed.semantic_query)
 
@@ -527,24 +509,20 @@ class ProductRetriever:
         if disliked_brands:
             where = {"$and": [where, {"brand": {"$ne": b for b in disliked_brands}}]} if where else {}
 
-        # ── 向量检索（chunk 级） ───────────────────────
         t0 = time.time()
         vector_results = self._vector_search(clean_query, top_k * 4, where)
         t1 = time.time()
 
-        # ── BM25 检索（chunk 级，同义词扩展） ──────────
         expanded_query = _expand_query(clean_query)
         bm25_results = self.bm25.search(expanded_query, top_k * 4, where)
         t2 = time.time()
 
-        # ── 属性匹配检索（结构化品牌/类目/关键词） ──────
         attr_results = self.attribute_matcher.search(clean_query, top_k * 4, where)
         t3 = time.time()
 
         print(f"[perf] vector={t1-t0:.3f}s  bm25={t2-t1:.3f}s  attr={t3-t2:.3f}s  "
               f"vec_hits={len(vector_results)}  bm25_hits={len(bm25_results)}  attr_hits={len(attr_results)}")
 
-        # ── RRF 融合（chunk 级，三路） ──────────────────
         fused = _rrf_fuse(vector_results, bm25_results, attr_results, k=RRF_K)
 
         # 构建 chunk_id → {id, document, metadata} 索引
@@ -553,7 +531,6 @@ class ProductRetriever:
             if r["id"] not in id_to_chunk:
                 id_to_chunk[r["id"]] = r
 
-        # ── Cross-Encoder 精排（可选） ────────────────
         try:
             from rag.reranker import reranker as _reranker
             # 取 RRF top-30 chunks 送入 Cross-Encoder
@@ -575,7 +552,6 @@ class ProductRetriever:
         for r in vector_results + bm25_results:
             id_to_meta[r["id"]] = r["metadata"]
 
-        # ── 按 product_id 聚合取 max RRF score ────────
         product_scores: dict[str, tuple[float, str]] = {}  # pid → (max_score, best_chunk_id)
         for chunk_id, rrf_score in fused:
             meta = id_to_meta.get(chunk_id, {})
@@ -585,7 +561,6 @@ class ProductRetriever:
             if pid not in product_scores or rrf_score > product_scores[pid][0]:
                 product_scores[pid] = (rrf_score, chunk_id)
 
-        # ── 多维偏好 Boost（在 RRF 分数上加常数） ────
         prefs = preferences or {}
         if preferred_brands or prefs:
             boosted = []
@@ -645,7 +620,6 @@ class ProductRetriever:
             boosted.sort(key=lambda x: x[1][0], reverse=True)
             product_scores = dict(boosted)
 
-        # ── 构建 Product 结果 ─────────────────────────
         merged = []
         for pid, (score, _) in sorted(product_scores.items(), key=lambda x: x[1][0], reverse=True):
             product = product_repo.get(pid)
@@ -654,12 +628,10 @@ class ProductRetriever:
             if len(merged) >= top_k:
                 break
 
-        # ── 无结果时去类目重试 ─────────────────────────
         if not merged and category_filter:
             print(f"[retriever] 类目过滤 '{category_filter}' 无结果，去掉类目重试...")
             return self.search(query, top_k, None, price_range, preferred_brands, disliked_brands)
 
-        # ── 写入缓存（只缓存有结果的情况） ─────────────
         if merged:
             with self._cache_lock:
                 self._result_cache[cache_key] = (time.time(), list(merged))
@@ -697,7 +669,6 @@ class ProductRetriever:
             print(f"[retriever] 向量搜索失败: {e}")
             return []
 
-    # ── 辅助查询方法 ─────────────────────────────────
 
     def search_by_name(self, name: str, limit: int = 5) -> list:
         """按商品名称模糊搜索，委托 ProductRepo"""

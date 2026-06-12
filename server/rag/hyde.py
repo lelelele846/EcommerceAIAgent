@@ -1,16 +1,16 @@
 """
-HyDE (Hypothetical Document Embeddings) — 用 LLM 生成假设商品描述再检索。
+基于 HyDE 技术的假设文档生成器。
 
-原理：
-    短查询（"推荐个耳机"）embedding 信息量少，召回率低。
-    先让 LLM 想象一款理想商品并描述，用这个"假设文档"做向量检索，
-    因为假设文档与真实商品描述在同一语义空间，召回率大幅提升。
+核心原理：
+    当用户查询较短（如"推荐耳机"）时，直接向量化的语义信息有限。
+    通过让语言模型生成一份"理想商品描述"，再用这个描述进行向量检索，
+    可以显著提升召回效果，因为假设文档与真实商品处于同一语义空间。
 
-触发条件：
-    - query ≤ 20 字符
-    - 非简单品牌名/商品名（已有精确匹配路径）
+激活条件：
+    - 查询长度不超过 20 个字符
+    - 排除纯品牌名称的精确匹配场景
 
-参考：Precise Zero-Shot Dense Retrieval without Relevance Labels (Gao et al., 2022)
+技术来源：Precise Zero-Shot Dense Retrieval without Relevance Labels (Gao et al., 2022)
 """
 from typing import Optional
 

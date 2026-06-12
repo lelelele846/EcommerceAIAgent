@@ -1,3 +1,20 @@
+"""
+图像智能服务 — 整合图像向量化检索和视觉内容分析。
+
+两大核心能力：
+    1. 图像向量化搜索：使用 Doubao-embedding-vision 将图片映射到 2048 维向量空间，
+       与文本向量统一编码，实现跨模态相似商品检索
+    2. VLM 视觉分析：调用多模态大模型识别物体属性（名称、类目、颜色、材质、品牌），
+       作为降级方案或辅助检索
+
+索引构建：
+    - 启动时批量为商品图片建立向量索引，存入 ChromaDB 的 product_images 集合
+    - 支持同步/异步两种调用方式
+
+检索流程（拍照找货）：
+    优先向量检索 → 距离阈值过滤 → 商品聚合
+    向量检索失败时自动降级到 VLM 识别 + 文本检索
+"""
 import os
 import asyncio
 import aiohttp
@@ -9,7 +26,7 @@ from typing import List, Dict, Optional
 load_dotenv()
 
 class ImageService:
-    """图像服务类 - 使用 Doubao-embedding-vision 进行图像向量化检索"""
+    """图像智能服务 — 向量检索与视觉内容分析"""
 
     def __init__(self):
         self.api_key = os.getenv("DOUBAO_API_KEY")
@@ -226,13 +243,11 @@ class ImageService:
         1. VLM 识别物体属性 → RAG 文本检索（首选，endpoint 已验证可用）
         2. 如果配置了独立的 embedding-vision endpoint，则用向量检索（更精确）
         """
-        # ── 未显式配置 embedding-vision 模型 → 直接走 VLM ──
         embedding_model_configured = bool(os.getenv("DOUBAO_EMBEDDING_VISION_MODEL"))
         if not embedding_model_configured:
             print("[ImageService] embedding-vision 未配置，使用 VLM 识别", flush=True)
             return await self.search_similar_products(image_data, retriever)
 
-        # ── embedding-vision 路径（已显式配置该模型）──
         try:
             embedding = await self._get_image_embedding(image_data)
             if self.image_collection and self.image_collection.count() > 0:

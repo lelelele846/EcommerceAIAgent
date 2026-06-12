@@ -1,3 +1,20 @@
+"""
+商品卡片解析器 — 从流式文本中提取商品卡片标记。
+
+核心功能：
+    1. [商品卡片:ID] 标记检测：快速但依赖 LLM 格式配合
+    2. 商品标题匹配检测：不依赖 LLM，直接扫描输出文本中的商品名称
+    3. 流式解析：支持边接收边解析，实时推送商品卡片
+
+技术亮点：
+    - 双重检测机制解决 LLM 把卡片标记堆在末尾的问题
+    - 标题匹配优先按长度降序，确保长标题优先匹配
+    - 自动去重，避免重复推送同一商品卡片
+
+业界参考：
+    - Perplexity AI: inline citation → card expansion
+    - Claude tool_use: structured blocks interleaved in stream
+"""
 import re
 
 
@@ -16,11 +33,6 @@ class StreamCardParser:
     双重检测机制（解决 LLM 把卡片标记堆在末尾的问题）：
     1. [商品卡片:ID] 标记检测（快，依赖 LLM 配合）
     2. 商品标题匹配检测（可靠，不依赖 LLM 格式遵守）
-
-    业界参考：
-    - Perplexity AI: inline citation → card expansion
-    - Claude tool_use: structured blocks interleaved in stream
-    - 本实现：标题匹配 = 无需 LLM 配合的 inline 卡片推送
     """
 
     def __init__(self, product_lookup: dict[str, dict] | None = None):
@@ -78,7 +90,6 @@ class StreamCardParser:
         self.buffer = ""
         return events
 
-    # ── 标题匹配检测 ──────────────────────────────
 
     def _detect_title_mentions(self) -> list:
         """
@@ -99,7 +110,6 @@ class StreamCardParser:
                 events.append({"type": "product_card", "product_id": pid})
         return events
 
-    # ── [商品卡片:ID] 标记解析 ──────────────────────
 
     def _hold_back_length(self) -> int:
         """判断需要保留多少字符（避免截断不完整的卡片标记）"""

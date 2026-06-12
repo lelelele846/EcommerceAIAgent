@@ -1,14 +1,14 @@
 """
-Product Graph — 轻量级商品关系图（内存 dict，无需 Neo4j）。
+轻量级商品关系图，基于内存字典实现，无需外部图数据库。
 
-三层关系：
-1. 同品牌：same_brand[brand] → [product_ids]
-2. 同类目：same_category[category] → [product_ids]
-3. 互补品：基于规则的搭配建议（如"跑步鞋"→"运动袜"）
+支持三种关系类型：
+    1. 同品牌关联：将同一品牌的商品分组
+    2. 同类目关联：将同一类目的商品分组
+    3. 互补品关联：基于规则的搭配建议（如"跑步鞋"推荐"运动袜"）
 
-用途：
-- 检索 boost：匹配到某品牌商品后 boost 同品牌其他商品
-- 搭配推荐：推荐商品后追加 1-2 个互补品
+主要应用场景：
+    - 检索增强：匹配到某品牌后提升同品牌其他商品的权重
+    - 搭配推荐：在推荐商品后追加相关互补品建议
 """
 from typing import Optional
 from collections import defaultdict
@@ -16,18 +16,15 @@ from collections import defaultdict
 
 # 互补品搭配规则（关键词 → 搭配品类 + 搜索 query）
 _COMPLEMENT_RULES: dict[str, list[dict]] = {
-    "跑鞋": [{"category": "服饰运动", "query": "运动袜", "reason": "搭配运动袜"}],
-    "跑步鞋": [{"category": "服饰运动", "query": "运动袜", "reason": "搭配运动袜"}],
-    "篮球鞋": [{"category": "服饰运动", "query": "运动袜", "reason": "搭配运动袜"}],
-    "登山鞋": [{"category": "服饰运动", "query": "户外背包", "reason": "户外搭配"}],
-    "手机": [{"category": "数码电子", "query": "手机壳", "reason": "手机配件"},
-             {"category": "数码电子", "query": "充电器", "reason": "充电配件"}],
-    "笔记本电脑": [{"category": "数码电子", "query": "鼠标", "reason": "电脑配件"}],
-    "笔记本": [{"category": "数码电子", "query": "鼠标", "reason": "电脑配件"}],
-    "平板": [{"category": "数码电子", "query": "平板保护壳", "reason": "平板配件"}],
-    "防晒": [{"category": "美妆护肤", "query": "卸妆", "reason": "防晒需卸妆"}],
-    "粉底": [{"category": "美妆护肤", "query": "散粉", "reason": "定妆搭配"}],
-    "咖啡": [{"category": "食品饮料", "query": "牛奶", "reason": "咖啡伴侣"}],
+    "跑步鞋": [{"category": "服饰运动", "query": "速干T恤", "reason": "跑步搭配速干衣"}],
+    "跑鞋":   [{"category": "服饰运动", "query": "速干T恤", "reason": "跑步搭配速干衣"}],
+    "篮球鞋": [{"category": "服饰运动", "query": "运动长裤", "reason": "搭配运动裤"}],
+    "徒步鞋": [{"category": "服饰运动", "query": "背包", "reason": "户外搭配背包"}],
+    "防晒":   [{"category": "美妆护肤", "query": "卸妆", "reason": "防晒需卸妆"}],
+    "面霜":   [{"category": "美妆护肤", "query": "精华", "reason": "面霜搭配精华"}],
+    "咖啡":   [{"category": "食品饮料", "query": "牛奶", "reason": "咖啡伴侣"}],
+    "方便面": [{"category": "食品饮料", "query": "茶饮", "reason": "搭配饮品"}],
+    "粉底":   [{"category": "美妆护肤", "query": "蜜粉", "reason": "定妆搭配"}],
 }
 
 

@@ -1,3 +1,17 @@
+"""
+多模态交互 API — 支持语音识别、语音合成和图像搜索。
+
+核心功能：
+    1. 语音识别（ASR）：将语音转为文字，进入正常对话流程
+    2. 语音合成（TTS）：将文本转为语音音频
+    3. 拍照找货：通过图像向量化检索相似商品
+    4. VLM 降级模式：图像向量化失败时，使用 VLM 识别物体属性后文本检索
+
+技术亮点：
+    - Doubao-embedding-vision 将文本和图像映射到同一 2048 维向量空间
+    - 图搜和文搜结果可直接关联商品 ID，无需额外跨模态映射
+    - 端侧等比缩放（800px 上限）+ JPEG 压缩（quality=80）减少传输量
+"""
 import os
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse, Response
@@ -33,79 +47,6 @@ def get_base_url(http_request: Request) -> str:
     host = http_request.headers.get("host", "localhost:8080")
     scheme = http_request.headers.get("x-forwarded-proto", "http")
     return f"{scheme}://{host}"
-
-
-@router.post("/speech/recognize")
-async def speech_recognize(request: Request, file: UploadFile = File(...)):
-    _check_services_initialized()
-    
-    filename = file.filename or ""
-    file_ext = filename.split(".")[-1].lower() if "." in filename else "wav"
-    
-    audio_data = await file.read()
-    
-    text = await _audio_service.speech_to_text(audio_data, format=file_ext)
-    
-    if not text:
-        raise HTTPException(status_code=400, detail="无法识别语音内容")
-
-    if text.startswith("[ERROR]"):
-        return {
-            "recognized_text": "",
-            "reply_text": text,
-            "products": [],
-            "need_more_info": False,
-            "questions": [],
-            "session_id": request.headers.get("X-Session-ID", "default")
-        }
-
-    session_id = request.headers.get("X-Session-ID", "default")
-    session = _session_manager.get_session(session_id)
-    if not session:
-        session = _session_manager.create_session(session_id)
-
-    _session_manager.update_session(session_id, "user", text)
-
-    context = {
-        "preferences": session.preferences.dict(),
-        "interaction_count": session.interaction_count,
-        "history": session.get_history(5)
-    }
-
-    base_url = get_base_url(request)
-
-    from rag.prompt import build_prompt
-    from utils.category_detector import detect_category
-    from utils.product_card_parser import PRODUCT_CARD_PATTERN, strip_product_card_markers
-
-    category = detect_category(text)
-    retrieved_products = _retriever.search(text, top_k=5, category_filter=category)
-
-    prompt_context = {
-        'original_category': category,
-        'interaction_count': session.interaction_count,
-        'session': session.dict()
-    }
-    prompt = build_prompt(text, retrieved_products, prompt_context)
-    ai_response = await _doubao_service.generate_response(prompt)
-    clean_response = strip_product_card_markers(ai_response)
-
-    card_ids = PRODUCT_CARD_PATTERN.findall(ai_response)
-    recommended_ids = [pid.strip() for pid in card_ids] if card_ids else []
-    recommended_products = [
-        p for p in retrieved_products if p.id in recommended_ids
-    ] if recommended_ids else retrieved_products
-
-    _session_manager.update_session(session_id, "assistant", clean_response)
-
-    return {
-        "recognized_text": text,
-        "reply_text": clean_response if clean_response else response.reply_text,
-        "products": products_to_dict_list(recommended_products, base_url),
-        "need_more_info": response.need_more_info,
-        "questions": response.questions,
-        "session_id": session_id
-    }
 
 
 @router.post("/speech/synthesize")
@@ -302,80 +243,3 @@ async def image_search_vlm(request: Request, file: UploadFile = File(...)):
         "search_method": "vlm"
     }
 
-
-@router.post("/chat/voice")
-async def voice_chat(request: Request, file: UploadFile = File(...)):
-    _check_services_initialized()
-    
-    filename = file.filename or ""
-    file_ext = filename.split(".")[-1].lower() if "." in filename else "wav"
-    
-    audio_data = await file.read()
-    
-    text = await _audio_service.speech_to_text(audio_data, format=file_ext)
-    
-    if not text:
-        raise HTTPException(status_code=400, detail="无法识别语音内容")
-
-    if text.startswith("[ERROR]"):
-        return {
-            "recognized_text": "",
-            "reply_text": text,
-            "products": [],
-            "need_more_info": False,
-            "questions": [],
-            "session_id": request.headers.get("X-Session-ID", "default")
-        }
-
-    session_id = request.headers.get("X-Session-ID", "default")
-    session = _session_manager.get_session(session_id)
-    if not session:
-        session = _session_manager.create_session(session_id)
-
-    _session_manager.update_session(session_id, "user", text)
-
-    context = {
-        "preferences": session.preferences.dict(),
-        "interaction_count": session.interaction_count,
-        "history": session.get_history(5)
-    }
-
-    base_url = get_base_url(request)
-
-    from rag.prompt import build_prompt
-    from utils.category_detector import detect_category
-    from utils.product_card_parser import PRODUCT_CARD_PATTERN, strip_product_card_markers
-
-    category = detect_category(text)
-    retrieved_products = _retriever.search(text, top_k=5, category_filter=category)
-
-    prompt_context = {
-        'original_category': category,
-        'interaction_count': session.interaction_count,
-        'session': session.dict()
-    }
-    prompt = build_prompt(text, retrieved_products, prompt_context)
-    ai_response = await _doubao_service.generate_response(prompt)
-    clean_response = strip_product_card_markers(ai_response)
-
-    card_ids = PRODUCT_CARD_PATTERN.findall(ai_response)
-    recommended_ids = [pid.strip() for pid in card_ids] if card_ids else []
-    recommended_products = [
-        p for p in retrieved_products if p.id in recommended_ids
-    ] if recommended_ids else retrieved_products
-
-    _session_manager.update_session(session_id, "assistant", clean_response)
-
-    reply_text = clean_response if clean_response else response.reply_text
-    speech_audio = await _audio_service.text_to_speech(reply_text)
-
-    import base64
-    return {
-        "recognized_text": text,
-        "reply_text": reply_text,
-        "speech_audio_base64": base64.b64encode(speech_audio).decode('utf-8') if speech_audio else "",
-        "products": products_to_dict_list(recommended_products, base_url),
-        "need_more_info": response.need_more_info,
-        "questions": response.questions,
-        "session_id": session_id
-    }
