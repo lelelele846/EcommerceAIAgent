@@ -142,6 +142,12 @@ class OrderAgent:
 
     async def _step_confirm_address(self, session_id, items, query, total):
         """Step 2: 接收地址 → 展示完整汇总"""
+        # 用户可能想取消当前订单、开新订单（说"帮我下单XX"）
+        if any(k in query for k in ["下单", "结算", "我要买", "帮我下单", "去支付"]):
+            self._set_order_state(session_id, "init")
+            yield ev_content("好的，先取消当前订单，帮你重新处理～").to_sse_compact()
+            # 直接重新进入 run，让 chat.py 的 mid-flow 检测重新触发
+            return  # 返回让 chat.py 再次发起到 order_agent
         address = query.strip()
         if not address or len(address) < 2:
             yield ev_content("地址好像不太完整哦，请再输入一下收货地址～").to_sse_compact()

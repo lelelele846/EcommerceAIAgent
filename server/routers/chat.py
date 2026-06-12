@@ -709,11 +709,16 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             # 🆕 如果正在下单流程中（confirm_address / confirm_final），直接交给 order_agent
             order_state = getattr(session, 'order_state', {}) or {}
             if order_state.get("step") in ("confirm_address", "confirm_final"):
-                from agent.order_agent import order_agent as ord_agt
-                async for event_str in ord_agt.run(request.session_id, query, {}, base_url=base_url):
-                    yield event_str
-                yield ev_end(True).to_sse_compact()
-                return
+                # 但如果用户提了新下单请求，先重置状态让正常分派处理
+                if any(k in query for k in ["下单", "帮我下单", "我要买"]):
+                    order_state["step"] = "init"
+                    session.order_state = order_state
+                else:
+                    from agent.order_agent import order_agent as ord_agt
+                    async for event_str in ord_agt.run(request.session_id, query, {}, base_url=base_url):
+                        yield event_str
+                    yield ev_end(True).to_sse_compact()
+                    return
 
             # 🆕 如果购物车有未确认的多规格候选，直接交给 cart_agent
             if getattr(session, 'cart_clarify_candidates', None):
